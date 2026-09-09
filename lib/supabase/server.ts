@@ -40,3 +40,32 @@ export async function usuarioActual() {
   if (error || !data.user) return null;
   return data.user;
 }
+
+export interface PerfilCounselor {
+  id: string;
+  email: string | null;
+  nombre: string | null;
+  rol: "counselor" | "admin";
+}
+
+/** Usuario + su fila de `public.users`. null si no hay sesion. */
+export async function perfilActual(): Promise<PerfilCounselor | null> {
+  const sb = await crearClienteServidor();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return null;
+
+  const { data: fila } = await sb
+    .from("users")
+    .select("id, email, nombre, rol")
+    .eq("id", auth.user.id)
+    .maybeSingle();
+
+  return (
+    (fila as PerfilCounselor | null) ?? {
+      id: auth.user.id,
+      email: auth.user.email ?? null,
+      nombre: null,
+      rol: "counselor",
+    }
+  );
+}

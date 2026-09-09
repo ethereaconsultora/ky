@@ -38,12 +38,14 @@
 ## Fase 3 — Shell + Inicio
 
 - ✅ Clientes Supabase: `lib/supabase/{env,server,client,service}.ts` (`@supabase/ssr`).
-  `usuarioActual()` con `getUser()`. Verificado contra el proyecto real (13 tablas → 200).
-- ⬜ Auth EC (Supabase Auth, email + OTP) + middleware de refresh + server layout con `getUser()`.
-  Decisión abierta #5: login propio EC (recomendado) vs SSO Newen.
-- ⬜ Trigger `on auth.users` → alta en `public.users` (o alta vía `service.ts` en el callback).
-- ⬜ Componentes base del `DESIGN_SYSTEM.md`.
-- ⬜ Pantalla Inicio: datos de empresa + consentimiento de audio versionado.
+  `usuarioActual()` / `perfilActual()` con `getUser()`. Verificado (13 tablas → 200).
+- ✅ Auth EC: login propio (Supabase Auth, email + OTP, `shouldCreateUser:false`). Decisión #5 cerrada.
+  `middleware.ts` (refresh + guard de rutas), `app/login/`, `app/auth/signout`, layout `(app)/`
+  con revalidación server-side.
+- ✅ Trigger `on auth.users` → alta en `public.users` (`supabase/migrations/0007`, con backfill).
+- ⬜ Aplicar `0007` al proyecto real + dar de alta a los counselors en Supabase Auth.
+- ⬜ Componentes base del `DESIGN_SYSTEM.md` (hoy estilos inline con tokens).
+- ⬜ `POST /api/diagnostico` + Pantalla Inicio: datos de empresa + consentimiento de audio versionado.
 - ⬜ `InactivityTimer` (timeout de sesión).
 
 ## Fase 4 — Motor de Turno
