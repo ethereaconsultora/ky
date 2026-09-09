@@ -37,7 +37,11 @@
 
 ## Fase 3 — Shell + Inicio
 
-- ⬜ Auth EC (Supabase Auth, email + OTP) + server layout con `getUser()`.
+- ✅ Clientes Supabase: `lib/supabase/{env,server,client,service}.ts` (`@supabase/ssr`).
+  `usuarioActual()` con `getUser()`. Verificado contra el proyecto real (13 tablas → 200).
+- ⬜ Auth EC (Supabase Auth, email + OTP) + middleware de refresh + server layout con `getUser()`.
+  Decisión abierta #5: login propio EC (recomendado) vs SSO Newen.
+- ⬜ Trigger `on auth.users` → alta en `public.users` (o alta vía `service.ts` en el callback).
 - ⬜ Componentes base del `DESIGN_SYSTEM.md`.
 - ⬜ Pantalla Inicio: datos de empresa + consentimiento de audio versionado.
 - ⬜ `InactivityTimer` (timeout de sesión).
