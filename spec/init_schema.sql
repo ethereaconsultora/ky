@@ -1,14 +1,33 @@
 -- ============================================================
--- KY — Esquema inicial (proyecto Supabase de ESPACIO CRÍTICO)
--- VISTA CONSOLIDADA — referencia humana. La fuente canónica son las
--- migraciones numeradas en supabase/migrations/0001..0005 (aplicar ésas).
--- Idempotente: puede re-ejecutarse. Implementa spec/DATA_MODEL.md.
+-- KY — Esquema consolidado (proyecto Supabase de ESPACIO CRÍTICO)
+-- GENERADO: concatenación de supabase/migrations/0001..0005 (en ese orden).
+-- Fuente canónica: supabase/migrations/. NO editar este archivo a mano —
+-- regenerar con: cat supabase/migrations/00*.sql > spec/init_schema.sql (con este header).
+-- Idempotente. Pegar entero en Supabase → SQL Editor → Run. Implementa spec/DATA_MODEL.md.
 -- ============================================================
 
+
+-- >>> supabase/migrations/0001_extensions.sql
+
+-- ============================================================
+-- 0001 — Extensiones
+-- Proyecto Supabase de ESPACIO CRÍTICO (KY). Idempotente.
+-- ============================================================
+
+-- pgcrypto: cifrado en reposo de los campos sensibles de respuesta_cruda
+-- (pgp_sym_encrypt / pgp_sym_decrypt en el backend con EC_PGCRYPTO_KEY).
 create extension if not exists pgcrypto;
 
+
+-- >>> supabase/migrations/0002_auth_y_catalogo.sql
+
+-- ============================================================
+-- 0002 — Perfil de usuario + catálogo de consentimiento + helper es_admin()
+-- RLS y políticas en la misma migración que crea cada tabla.
+-- ============================================================
+
 -- ------------------------------------------------------------
--- 0. Rol de la app (perfil de usuario) — Supabase Auth provee auth.users
+-- users — perfil de la app. Supabase Auth provee auth.users.
 -- ------------------------------------------------------------
 create table if not exists public.users (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -19,7 +38,7 @@ create table if not exists public.users (
 );
 
 -- ------------------------------------------------------------
--- 1. Catálogo de textos de consentimiento (versionado)
+-- consentimiento_textos — catálogo global versionado (I8, gap 12 del plan)
 -- ------------------------------------------------------------
 create table if not exists public.consentimiento_textos (
   id             uuid primary key default gen_random_uuid(),
@@ -30,19 +49,57 @@ create table if not exists public.consentimiento_textos (
 );
 
 -- ------------------------------------------------------------
--- 2. Empresa
+-- helper: ¿el usuario actual es admin?
+-- security definer + search_path fijo (no confía en el search_path del caller).
+-- ------------------------------------------------------------
+create or replace function public.es_admin() returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.users u where u.id = auth.uid() and u.rol = 'admin');
+$$;
+
+-- ============================================================
+-- RLS
+-- ============================================================
+alter table public.users                 enable row level security;
+alter table public.consentimiento_textos enable row level security;
+
+-- users: cada quien se lee a sí mismo; admin lee todo. Sin INSERT/UPDATE vía API
+-- (el alta la hace un trigger/servicio con service_role, que saltea RLS).
+drop policy if exists users_self on public.users;
+create policy users_self on public.users
+  for select using (id = auth.uid() or public.es_admin());
+
+-- consentimiento_textos: lectura para autenticados, escritura sólo admin.
+drop policy if exists ct_read on public.consentimiento_textos;
+create policy ct_read on public.consentimiento_textos
+  for select using (auth.uid() is not null);
+
+drop policy if exists ct_write on public.consentimiento_textos;
+create policy ct_write on public.consentimiento_textos
+  for all using (public.es_admin()) with check (public.es_admin());
+
+
+-- >>> supabase/migrations/0003_empresa_y_diagnostico.sql
+
+-- ============================================================
+-- 0003 — empresa + diagnostico + helper puede_ver_diag()
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- empresa — entidad propia de EC. organization_client_id es el puente
+-- (FK lógico, no enforced) al proyecto Newen (B5 del plan).
 -- ------------------------------------------------------------
 create table if not exists public.empresa (
   id                      uuid primary key default gen_random_uuid(),
   nombre                  text not null,
   sector                  text,
   tamano_n                int,
-  organization_client_id  uuid,               -- FK lógico al proyecto Newen (no enforced)
+  organization_client_id  uuid,
   fecha_alta              timestamptz not null default now()
 );
 
 -- ------------------------------------------------------------
--- 3. Diagnóstico
+-- diagnostico
 -- ------------------------------------------------------------
 create table if not exists public.diagnostico (
   id                       uuid primary key default gen_random_uuid(),
@@ -53,19 +110,63 @@ create table if not exists public.diagnostico (
                              ('DOMINANTE_CONFIRMED','DOMINANTE_AMBIGUOUS','DOMINANTE_DEBIL','SIN_EVIDENCIA_SUFICIENTE')),
   caso                     int check (caso between 1 and 4),
   counselor_id             uuid not null references public.users(id),
-  modo_captura             text not null default 'audio_transcrito' check (modo_captura in ('manual','audio_transcrito')),
+  modo_captura             text not null default 'audio_transcrito'
+                             check (modo_captura in ('manual','audio_transcrito')),
   prompt_version           text,
   mapa_indagacion_version  text,
-  estado                   text not null default 'en_curso' check (estado in ('en_curso','cerrado','pausado')),
+  estado                   text not null default 'en_curso'
+                             check (estado in ('en_curso','cerrado','pausado')),
   fecha_inicio             timestamptz not null default now(),
   fecha_cierre             timestamptz,
   paused_at                timestamptz,
   expires_at               timestamptz,
   resume_token             text
 );
+create index if not exists idx_diagnostico_counselor on public.diagnostico(counselor_id);
+create index if not exists idx_diagnostico_empresa    on public.diagnostico(empresa_id);
 
 -- ------------------------------------------------------------
--- 4. Datos económicos
+-- helper: ¿el diagnóstico es del counselor actual (o es admin)?
+-- ------------------------------------------------------------
+create or replace function public.puede_ver_diag(diag uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.es_admin()
+      or exists (select 1 from public.diagnostico d where d.id = diag and d.counselor_id = auth.uid());
+$$;
+
+-- ============================================================
+-- RLS
+-- ============================================================
+alter table public.empresa     enable row level security;
+alter table public.diagnostico enable row level security;
+
+-- empresa: counselor con al menos un diagnóstico propio de esa empresa, o admin.
+drop policy if exists empresa_all on public.empresa;
+create policy empresa_all on public.empresa for all using (
+  public.es_admin()
+  or exists (
+    select 1 from public.diagnostico d
+    where d.empresa_id = empresa.id and d.counselor_id = auth.uid()
+  )
+) with check (auth.uid() is not null);
+
+-- diagnostico: dueño o admin.
+drop policy if exists diag_all on public.diagnostico;
+create policy diag_all on public.diagnostico for all
+  using (counselor_id = auth.uid() or public.es_admin())
+  with check (counselor_id = auth.uid() or public.es_admin());
+
+
+-- >>> supabase/migrations/0004_diagnostico_hijas.sql
+
+-- ============================================================
+-- 0004 — Tablas hijas del diagnóstico + auditoría
+-- Todas comparten la política: puede_ver_diag(diagnostico_id).
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- datos_economicos — 1:1. Ejes de fricción opcionales (B1);
+-- factor_friccion_derivado se calcula al cierre.
 -- ------------------------------------------------------------
 create table if not exists public.datos_economicos (
   diagnostico_id            uuid primary key references public.diagnostico(id) on delete cascade,
@@ -79,7 +180,7 @@ create table if not exists public.datos_economicos (
 );
 
 -- ------------------------------------------------------------
--- 5. Consentimiento (por diagnóstico)
+-- consentimiento — 1:1 si modo_captura = audio_transcrito.
 -- ------------------------------------------------------------
 create table if not exists public.consentimiento (
   id              uuid primary key default gen_random_uuid(),
@@ -88,18 +189,21 @@ create table if not exists public.consentimiento (
   aceptado_por    text not null,
   aceptado_at     timestamptz not null default now()
 );
+create index if not exists idx_consentimiento_diag on public.consentimiento(diagnostico_id);
 
 -- ------------------------------------------------------------
--- 6. Respuesta cruda (trazabilidad — campos sensibles cifrados)
---    El cifrado/descifrado se hace en el backend con pgp_sym_encrypt/decrypt
---    usando EC_PGCRYPTO_KEY (nunca en el cliente).
+-- respuesta_cruda — trazabilidad. texto_cifrado / transcripcion_cifrada
+-- se escriben con pgp_sym_encrypt() desde el backend (nunca en claro,
+-- nunca en el cliente). Si alerta_seguridad = true, el fragmento sensible
+-- NO se persiste en claro (gap 2, protocolo de crisis).
 -- ------------------------------------------------------------
 create table if not exists public.respuesta_cruda (
   id                     uuid primary key default gen_random_uuid(),
   diagnostico_id         uuid not null references public.diagnostico(id) on delete cascade,
   fenomeno_asociado      text,
   mecanismo_asociado     text,
-  tipo_pregunta          text not null check (tipo_pregunta in ('deteccion','evidencia','consecuencia','confirmacion','puente')),
+  tipo_pregunta          text not null
+                           check (tipo_pregunta in ('deteccion','evidencia','consecuencia','confirmacion','puente')),
   pregunta_texto         text not null,
   modalidad              text not null check (modalidad in ('texto','audio')),
   texto_cifrado          bytea,
@@ -112,7 +216,8 @@ create table if not exists public.respuesta_cruda (
 create index if not exists idx_respuesta_cruda_diag on public.respuesta_cruda(diagnostico_id, ts);
 
 -- ------------------------------------------------------------
--- 7. Fenómeno detectado
+-- fenomeno_detectado — 1:5 (uno por fenómeno). mecanismos = nivel 2 de la
+-- Mapa de Indagación (hilos detectados con su evidencia); perfil_mando = FAUNA.
 -- ------------------------------------------------------------
 create table if not exists public.fenomeno_detectado (
   id                        uuid primary key default gen_random_uuid(),
@@ -124,12 +229,14 @@ create table if not exists public.fenomeno_detectado (
   cond_consecuencia         boolean not null default false,
   cond_hipotesis            boolean not null default false,
   nota_condicion            text,
-  estado                    text not null default 'en_observacion' check (estado in ('confirmado','en_observacion','descartado')),
+  estado                    text not null default 'en_observacion'
+                              check (estado in ('confirmado','en_observacion','descartado')),
   intensidad                text check (intensidad in ('leve','moderado','severo','critico')),
   confianza                 text check (confianza in ('baja','media','alta')),
   mecanismo_organizacional  text,
   consecuencia_operativa    text,
-  indicador_economico       text check (indicador_economico in ('presentismo','rotacion','horas_improductivas','friccion')),
+  indicador_economico       text check (indicador_economico in
+                              ('presentismo','rotacion','horas_improductivas','friccion')),
   mecanismos                jsonb not null default '[]'::jsonb,
   perfil_mando              text,
   razonamiento              text,
@@ -138,7 +245,7 @@ create table if not exists public.fenomeno_detectado (
 );
 
 -- ------------------------------------------------------------
--- 8. Relación entre fenómenos (síntesis, sólo B)
+-- relacion_fenomeno — síntesis (sólo B). 0:N.
 -- ------------------------------------------------------------
 create table if not exists public.relacion_fenomeno (
   id                            uuid primary key default gen_random_uuid(),
@@ -151,9 +258,10 @@ create table if not exists public.relacion_fenomeno (
   requirio_pregunta_puente      boolean not null default false,
   punto_accesibilidad_sugerido  text
 );
+create index if not exists idx_relacion_fenomeno_diag on public.relacion_fenomeno(diagnostico_id);
 
 -- ------------------------------------------------------------
--- 9. Reversibilidad (síntesis, sólo B)
+-- reversibilidad — síntesis (sólo B). 0:N.
 -- ------------------------------------------------------------
 create table if not exists public.reversibilidad (
   id                        uuid primary key default gen_random_uuid(),
@@ -164,12 +272,14 @@ create table if not exists public.reversibilidad (
   peso_atribucion           numeric,
   alcance                   numeric,
   factor_confianza_circuito numeric,
-  plazo_aparicion_efecto    text not null check (plazo_aparicion_efecto in ('inmediato','corto','medio','largo')),
+  plazo_aparicion_efecto    text not null
+                              check (plazo_aparicion_efecto in ('inmediato','corto','medio','largo')),
   justificacion             text not null
 );
+create index if not exists idx_reversibilidad_diag on public.reversibilidad(diagnostico_id);
 
 -- ------------------------------------------------------------
--- 10. Pérdida económica
+-- perdida_economica — 1:1 al cierre. Reducción y ROI SIEMPRE como rango.
 -- ------------------------------------------------------------
 create table if not exists public.perdida_economica (
   diagnostico_id          uuid primary key references public.diagnostico(id) on delete cascade,
@@ -186,7 +296,7 @@ create table if not exists public.perdida_economica (
 );
 
 -- ------------------------------------------------------------
--- 11. Intervención propuesta
+-- intervencion_propuesta — 1:1 al cierre.
 -- ------------------------------------------------------------
 create table if not exists public.intervencion_propuesta (
   id                      uuid primary key default gen_random_uuid(),
@@ -202,9 +312,10 @@ create table if not exists public.intervencion_propuesta (
   enviada_at              timestamptz,
   artefacto_url           text
 );
+create index if not exists idx_intervencion_diag on public.intervencion_propuesta(diagnostico_id);
 
 -- ------------------------------------------------------------
--- 12. Auditoría de llamadas a IA
+-- llamada_ia — auditoría de prompts y costo (gap 6).
 -- ------------------------------------------------------------
 create table if not exists public.llamada_ia (
   id                       uuid primary key default gen_random_uuid(),
@@ -218,61 +329,11 @@ create table if not exists public.llamada_ia (
   latencia_ms              int,
   ts                       timestamptz not null default now()
 );
+create index if not exists idx_llamada_ia_diag on public.llamada_ia(diagnostico_id, ts);
 
 -- ============================================================
--- RLS
+-- RLS — todas las hijas: puede_ver_diag(diagnostico_id)
 -- ============================================================
-alter table public.users                 enable row level security;
-alter table public.empresa               enable row level security;
-alter table public.diagnostico           enable row level security;
-alter table public.datos_economicos      enable row level security;
-alter table public.consentimiento        enable row level security;
-alter table public.consentimiento_textos enable row level security;
-alter table public.respuesta_cruda       enable row level security;
-alter table public.fenomeno_detectado    enable row level security;
-alter table public.relacion_fenomeno     enable row level security;
-alter table public.reversibilidad        enable row level security;
-alter table public.perdida_economica     enable row level security;
-alter table public.intervencion_propuesta enable row level security;
-alter table public.llamada_ia            enable row level security;
-
--- helper: ¿el usuario actual es admin?
-create or replace function public.es_admin() returns boolean
-language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.users u where u.id = auth.uid() and u.rol = 'admin');
-$$;
-
--- helper: ¿el diagnóstico es del counselor actual (o es admin)?
-create or replace function public.puede_ver_diag(diag uuid) returns boolean
-language sql stable security definer set search_path = public as $$
-  select public.es_admin()
-      or exists (select 1 from public.diagnostico d where d.id = diag and d.counselor_id = auth.uid());
-$$;
-
--- users: cada quien se lee a sí mismo; admin lee todo
-drop policy if exists users_self on public.users;
-create policy users_self on public.users for select using (id = auth.uid() or public.es_admin());
-
--- consentimiento_textos: lectura autenticada, escritura admin
-drop policy if exists ct_read on public.consentimiento_textos;
-create policy ct_read on public.consentimiento_textos for select using (auth.uid() is not null);
-drop policy if exists ct_write on public.consentimiento_textos;
-create policy ct_write on public.consentimiento_textos for all using (public.es_admin()) with check (public.es_admin());
-
--- empresa: counselor con al menos un diagnóstico propio de esa empresa, o admin
-drop policy if exists empresa_all on public.empresa;
-create policy empresa_all on public.empresa for all using (
-  public.es_admin()
-  or exists (select 1 from public.diagnostico d where d.empresa_id = empresa.id and d.counselor_id = auth.uid())
-) with check (auth.uid() is not null);
-
--- diagnostico: dueño o admin
-drop policy if exists diag_all on public.diagnostico;
-create policy diag_all on public.diagnostico for all
-  using (counselor_id = auth.uid() or public.es_admin())
-  with check (counselor_id = auth.uid() or public.es_admin());
-
--- tablas hijas: usan puede_ver_diag(diagnostico_id)
 do $$
 declare t text;
 begin
@@ -280,22 +341,32 @@ begin
     'datos_economicos','consentimiento','respuesta_cruda','fenomeno_detectado',
     'relacion_fenomeno','reversibilidad','perdida_economica','intervencion_propuesta','llamada_ia'
   ] loop
+    execute format('alter table public.%I enable row level security', t);
     execute format('drop policy if exists %I_all on public.%I', t, t);
     execute format(
-      'create policy %I_all on public.%I for all using (public.puede_ver_diag(diagnostico_id)) with check (public.puede_ver_diag(diagnostico_id))',
+      'create policy %I_all on public.%I for all '
+      'using (public.puede_ver_diag(diagnostico_id)) '
+      'with check (public.puede_ver_diag(diagnostico_id))',
       t, t);
   end loop;
 end $$;
 
+
+-- >>> supabase/migrations/0005_ec_publico_vistas.sql
+
 -- ============================================================
--- Vistas expuestas al FDW de Newen (schema ec_publico) — SIN evidencia cruda
+-- 0005 — Esquema ec_publico: vistas de solo lectura para el FDW de Newen.
+-- NO expone respuesta_cruda ni campos con personas nombradas.
+-- El control de acceso es rol + vista (el FDW no respeta la RLS de EC).
 -- ============================================================
+
 create schema if not exists ec_publico;
 
+-- v_diagnostico — estado + resultado + fenómeno dominante (sin evidencia cruda).
 create or replace view ec_publico.v_diagnostico as
 select
   d.id,
-  e.nombre                   as empresa_nombre,
+  e.nombre                  as empresa_nombre,
   e.organization_client_id,
   d.estado,
   d.resultado_tipo,
@@ -303,14 +374,15 @@ select
   d.fecha_cierre,
   (select fd.fenomeno_tipo from public.fenomeno_detectado fd
      where fd.diagnostico_id = d.id and fd.estado = 'confirmado'
-     order by fd.intensidad desc nulls last limit 1)               as fenomeno_dominante,
+     order by fd.intensidad desc nulls last limit 1)            as fenomeno_dominante,
   (select fd.mecanismo_organizacional from public.fenomeno_detectado fd
      where fd.diagnostico_id = d.id and fd.estado = 'confirmado'
-     order by fd.intensidad desc nulls last limit 1)               as mecanismo_dominante
+     order by fd.intensidad desc nulls last limit 1)            as mecanismo_dominante
 from public.diagnostico d
 join public.empresa e on e.id = d.empresa_id
 where d.version = 'B' and d.estado = 'cerrado';
 
+-- v_perdida_economica — magnitudes agregadas; reducción y ROI como rango.
 create or replace view ec_publico.v_perdida_economica as
 select p.diagnostico_id, p.perdida_total,
        p.reduccion_ajustada_min, p.reduccion_ajustada_max,
@@ -319,6 +391,7 @@ from public.perdida_economica p
 join public.diagnostico d on d.id = p.diagnostico_id
 where d.version = 'B' and d.estado = 'cerrado';
 
+-- v_intervencion_propuesta — propuesta sin trazabilidad interna.
 create or replace view ec_publico.v_intervencion_propuesta as
 select i.diagnostico_id, i.caso, i.descripcion, i.traduccion_humana,
        i.horizonte_proyeccion, i.aprobada_por_consultor, i.enviada_at
@@ -326,11 +399,6 @@ from public.intervencion_propuesta i
 join public.diagnostico d on d.id = i.diagnostico_id
 where d.version = 'B' and d.estado = 'cerrado';
 
--- ============================================================
--- Rol de solo lectura para el FDW (ejecutar por separado, con contraseña real):
---   create role newen_reader login password '***';
---   grant usage on schema ec_publico to newen_reader;
---   grant select on all tables in schema ec_publico to newen_reader;
---   alter default privileges in schema ec_publico grant select on tables to newen_reader;
---   -- NUNCA: grant en el schema public a newen_reader.
--- ============================================================
+-- El rol newen_reader y sus grants se crean por separado con una contraseña real:
+-- ver supabase/roles/newen_reader.sql
+
