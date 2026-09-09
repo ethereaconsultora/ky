@@ -1,10 +1,18 @@
 -- ============================================================
--- 0006 — RPC para persistir respuesta_cruda con cifrado pgcrypto.
+-- 0006 — RPC para persistir/leer respuesta_cruda con cifrado pgcrypto.
 --
 -- supabase-js no puede invocar pgp_sym_encrypt() en un insert normal.
--- Este RPC recibe el texto plano + la clave (EC_PGCRYPTO_KEY, viaja server→
--- Supabase sobre TLS) y cifra del lado del servidor. security definer;
--- sólo el service_role lo puede llamar (revoke a anon/authenticated).
+-- Estos RPC reciben el texto plano + la clave (EC_PGCRYPTO_KEY, viaja server→
+-- Supabase sobre TLS) y cifran/descifran del lado del servidor. security definer;
+-- sólo el service_role los puede llamar (revoke a anon/authenticated).
+--
+-- En Supabase pgcrypto se instala en el esquema `extensions`. Como estos RPC
+-- fijan search_path = public, las funciones se llaman calificadas:
+-- `extensions.pgp_sym_encrypt` / `extensions.pgp_sym_decrypt`.
+-- Si en tu proyecto pgcrypto quedó en `public`, cambiá el prefijo.
+-- Verificar con:  select n.nspname from pg_proc p
+--                 join pg_namespace n on n.oid=p.pronamespace
+--                 where p.proname='pgp_sym_encrypt';
 -- ============================================================
 
 create or replace function public.guardar_respuesta_cruda(
@@ -28,7 +36,7 @@ declare
   v_cifrado bytea := null;
 begin
   if p_contenido is not null and length(p_contenido) > 0 and not p_alerta_seguridad then
-    v_cifrado := pgp_sym_encrypt(p_contenido, p_key);
+    v_cifrado := extensions.pgp_sym_encrypt(p_contenido, p_key);
   end if;
 
   insert into public.respuesta_cruda(
@@ -48,7 +56,7 @@ end $$;
 revoke all on function public.guardar_respuesta_cruda(
   uuid, text, text, text, text, text, text, text, uuid, boolean) from public, anon, authenticated;
 
--- Lectura desdecifrada — para las pantallas de Conversación / Resultado (Fase 5/7).
+-- Lectura descifrada — para las pantallas de Conversación / Resultado (Fase 5/7).
 create or replace function public.leer_respuestas_crudas(
   p_diagnostico_id uuid,
   p_key            text
@@ -63,22 +71,24 @@ create or replace function public.leer_respuestas_crudas(
   mecanismo_asociado text,
   alerta_seguridad   boolean
 )
-language sql
+language plpgsql
 security definer
 set search_path = public
 as $$
+begin
+  return query
   select
     r.id, r.ts, r.tipo_pregunta, r.pregunta_texto, r.modalidad,
     case
-      when r.alerta_seguridad then null
-      when r.texto_cifrado is not null then pgp_sym_decrypt(r.texto_cifrado, p_key)
-      when r.transcripcion_cifrada is not null then pgp_sym_decrypt(r.transcripcion_cifrada, p_key)
-      else null
+      when r.alerta_seguridad then null::text
+      when r.texto_cifrado is not null then extensions.pgp_sym_decrypt(r.texto_cifrado, p_key)
+      when r.transcripcion_cifrada is not null then extensions.pgp_sym_decrypt(r.transcripcion_cifrada, p_key)
+      else null::text
     end as contenido,
     r.fenomeno_asociado, r.mecanismo_asociado, r.alerta_seguridad
   from public.respuesta_cruda r
   where r.diagnostico_id = p_diagnostico_id
   order by r.ts;
-$$;
+end $$;
 
 revoke all on function public.leer_respuestas_crudas(uuid, text) from public, anon, authenticated;
