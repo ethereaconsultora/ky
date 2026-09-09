@@ -41,7 +41,15 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) · SemVer.
 - `prompts/` — generadores de system+user prompt de los 3 motores desde la config versionada.
 - Tests (`node --test`): 17 casos, verde. `tsc --noEmit`, `next lint` y `next build` limpios.
 
+### Added — migraciones DB (`supabase/`)
+- `supabase/migrations/0001..0005`: `pgcrypto`; `users` + `consentimiento_textos`; `empresa` +
+  `diagnostico`; 9 tablas hijas + `llamada_ia`; esquema `ec_publico` con las 3 vistas del FDW.
+  Idempotentes, RLS en la misma migración que crea cada tabla, helpers `es_admin()` /
+  `puede_ver_diag()` (`security definer`).
+- `supabase/roles/newen_reader.sql` (rol de solo lectura, se corre a mano en Fase 0).
+- `supabase/seed.sql` (consentimiento placeholder), `supabase/README.md`.
+
 ### Pendiente
-- Migraciones Supabase + RLS + pgcrypto + vistas `ec_publico`.
 - Shell de la tablet, endpoint `/api/turno`, STT, motor de síntesis, pantallas, integración Newen.
+- Aplicar migraciones contra el proyecto Supabase real (Fase 0) + trigger de alta en `public.users`.
 - Sesión con Ari para calibrar `mapa-indagacion.config` y los umbrales.

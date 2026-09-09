@@ -1,8 +1,8 @@
 -- ============================================================
 -- KY — Esquema inicial (proyecto Supabase de ESPACIO CRÍTICO)
--- BORRADOR — revisar a mano antes de ejecutar (Protocolo Maestro Bloque 3).
--- Idempotente: puede re-ejecutarse. Ejecutar en Supabase → SQL Editor.
--- Implementa spec/DATA_MODEL.md.
+-- VISTA CONSOLIDADA — referencia humana. La fuente canónica son las
+-- migraciones numeradas en supabase/migrations/0001..0005 (aplicar ésas).
+-- Idempotente: puede re-ejecutarse. Implementa spec/DATA_MODEL.md.
 -- ============================================================
 
 create extension if not exists pgcrypto;

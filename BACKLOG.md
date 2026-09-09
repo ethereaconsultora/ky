@@ -24,11 +24,16 @@
 
 ## Fase 2 — DB
 
-- ⬜ Migraciones numeradas en `/supabase/migrations` (esquema de `spec/DATA_MODEL.md`).
-- ⬜ RLS por counselor en cada tabla base (misma migración).
-- ⬜ `pgcrypto` sobre `respuesta_cruda.texto` / `.transcripcion` / evidencia con nombres.
-- ⬜ Vistas `ec_publico.v_diagnostico` / `v_perdida_economica` / `v_intervencion_propuesta`.
-- ⬜ Rol `newen_reader` (solo `SELECT` sobre `ec_publico`).
+- ✅ Migraciones numeradas en `supabase/migrations/0001..0005` (esquema de `spec/DATA_MODEL.md`),
+  idempotentes.
+- ✅ RLS por counselor en cada tabla base (misma migración) + helpers `es_admin()` /
+  `puede_ver_diag()` (`security definer`, `search_path` fijo).
+- ✅ `pgcrypto` (extensión) + columnas `bytea` cifradas en `respuesta_cruda`. El
+  `pgp_sym_encrypt` va en el backend (Fase 4).
+- ✅ Vistas `ec_publico.v_diagnostico` / `v_perdida_economica` / `v_intervencion_propuesta`.
+- ✅ Script del rol `newen_reader` (`supabase/roles/newen_reader.sql`) — se corre a mano en Fase 0.
+- ⬜ Trigger/servicio de alta en `public.users` al crear `auth.users` (pendiente Fase 3).
+- ⬜ Aplicar las migraciones contra el proyecto real (depende de Fase 0).
 
 ## Fase 3 — Shell + Inicio
 

@@ -95,3 +95,48 @@ sin warnings · `npm run test:dominio` 17/17 verde · `npm run build` OK.
 **Próximo paso**: Fase 0 externa (proyecto Supabase EC + Vercel + push del repo a remoto).
 Después Fase 4 — endpoint `/api/turno` (BFF → Claude) usando `lib/diagnostico/`, probado en
 modo texto contra transcripciones ficticias tipo Alemany (eval con Ari).
+
+---
+
+### [2026-09-09] — Fase 2: migraciones DB
+
+**Prompt**: "seguimos" — continuar con el plan.
+
+**Acción esperada**: convertir `spec/init_schema.sql` (borrador consolidado) en migraciones
+numeradas e idempotentes bajo `supabase/migrations/`, con RLS en la misma migración que crea
+cada tabla; script aparte para el rol `newen_reader`; README del directorio.
+
+**Archivos previstos**: `supabase/migrations/0001..0005_*.sql`, `supabase/roles/newen_reader.sql`,
+`supabase/seed.sql`, `supabase/README.md`.
+
+**Resultado**: ✅ Migraciones escritas. Sin proyecto Supabase todavía → no aplicadas (Fase 0).
+`spec/init_schema.sql` pasa a ser "vista consolidada"; la fuente canónica es `supabase/migrations/`.
+
+**Archivos tocados**:
+- `supabase/migrations/0001_extensions.sql` — `pgcrypto`.
+- `supabase/migrations/0002_auth_y_catalogo.sql` — `users`, `consentimiento_textos`,
+  helper `es_admin()`, RLS + políticas.
+- `supabase/migrations/0003_empresa_y_diagnostico.sql` — `empresa`, `diagnostico`,
+  helper `puede_ver_diag()`, RLS + políticas, índices.
+- `supabase/migrations/0004_diagnostico_hijas.sql` — `datos_economicos`, `consentimiento`,
+  `respuesta_cruda` (cifrado `bytea`), `fenomeno_detectado`, `relacion_fenomeno`,
+  `reversibilidad`, `perdida_economica`, `intervencion_propuesta`, `llamada_ia`; RLS por bucle
+  con `puede_ver_diag(diagnostico_id)`.
+- `supabase/migrations/0005_ec_publico_vistas.sql` — esquema `ec_publico` + 3 vistas del FDW.
+- `supabase/roles/newen_reader.sql`, `supabase/seed.sql`, `supabase/README.md`.
+- `spec/init_schema.sql`: header actualizado (vista consolidada, no fuente canónica).
+- `BACKLOG.md`, `CHANGELOG.md`: Fase 2 marcada ✅.
+
+**Decisiones de implementación**:
+- Split en 5 migraciones por dependencia de helpers: `es_admin()` necesita `public.users`;
+  `puede_ver_diag()` necesita `public.diagnostico`. Cada helper se crea justo después de su tabla.
+- RLS de las 9 hijas por bucle `do $$ … format(%I) … $$` — una sola política `*_all` por tabla,
+  `using` + `with check` = `puede_ver_diag(diagnostico_id)`.
+- `newen_reader` fuera de las migraciones (necesita password real; se corre 1 vez en Fase 0).
+- Alta de `public.users`: pendiente Fase 3 (trigger sobre `auth.users` o servicio con service_role;
+  la política `users_self` es sólo `select`).
+
+**Commit**: `feat(db): migraciones 0001–0005 (esquema EC + RLS + vistas ec_publico)`
+
+**Próximo paso**: Fase 0 externa. Después Fase 4 — `/api/turno` (BFF → Claude `claude-haiku-4-5`
+con `output_config.format` = `SCHEMA_MOTOR_TURNO`), testeable con SDK de Claude mockeado.
