@@ -52,10 +52,16 @@
   `ejecutarTurno()` (orquestación pura), `clienteAnthropic()` (SDK). 9 tests con doble.
 - ✅ Normalización + filtro PSAI B1 sobre la transcripción (`normalizar.ts`) + saneo B4.
 - ✅ `@anthropic-ai/sdk` 0.68 → 0.124 (`output_config.format`, adaptive thinking).
-- ⬜ `POST /api/turno` (Route Handler: auth `getUser()` + rate limit Upstash + persistencia).
-- ⬜ Estado de fenómenos/mecanismos persistido en DB (`fenomeno_detectado`, `respuesta_cruda`
-  cifrada, `llamada_ia` con `meta`).
-- ⬜ Smoke test de `cliente.ts` contra la API real (`ANTHROPIC_API_KEY`).
+- ✅ `POST /api/turno` (Route Handler: `getUser()` + carga diagnóstico por RLS + rate limit +
+  `ejecutarTurno` + persistencia). `build` lo lista como `ƒ /api/turno`.
+- ✅ Estado de fenómenos/mecanismos ↔ DB: `lib/ia/persistencia-turno.ts` (`estadoFenomenos`,
+  `upsertsFenomenos`) + 4 tests. `respuesta_cruda` cifrada vía RPC `guardar_respuesta_cruda`
+  (migración `0006`). `llamada_ia` con `meta`.
+- ✅ Rate limit: `lib/ratelimit/` — Upstash si hay env, limiter en memoria si no.
+- 🟡 Smoke test contra la API real: **plomería OK** (llega a Claude, arma `output_config.format`),
+  pero el workspace de Anthropic no tiene crédito → falta cargar saldo para el eval.
+- ⬜ Aplicar migración `0006` al proyecto real.
+- ⬜ Auth real (login) para poder llamar a `/api/turno` de punta a punta.
 - ⬜ Eval de amplitud/profundidad con Ari (transcripciones ficticias tipo Alemany).
 
 ## Fase 5 — Pantalla Conversación
