@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espacio Crítico — Diagnóstico EC (Boceto A actualizado)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --g0:#0a0806; --g1:#100e0a; --g2:#1a1710; --g3:#231f18; --g4:#2e2820; --g5:#3e3528;
+    --t0:#f2ede4; --t1:#b8ae9c; --t2:#7a7060;
+    --ac:#c4a87e; --ac2:#9e8860; --sand:#d6c09a;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--g0); color:var(--t0); font-family:'DM Sans',sans-serif; font-weight:300;}
+  .serif{font-family:'Cormorant Garamond',serif;}
+
+  .diag-overlay{max-width:480px; margin:40px auto; padding:16px 12px 48px;}
+  .diag-box{background:var(--g1); border:0.5px solid var(--g4); border-radius:16px; padding:32px 28px;}
+
+  .diag-progress-bar{height:2px; background:var(--g3); border-radius:100px; margin-bottom:28px; overflow:hidden;}
+  .diag-progress-fill{height:100%; background:var(--ac); border-radius:100px; transition:width .4s ease;}
+
+  .df-label{font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--t2); display:block; margin-bottom:7px;}
+  .df-input, .df-select, .df-textarea{
+    width:100%; background:var(--g2); border:0.5px solid var(--g4); padding:12px 14px; color:var(--t0);
+    font-family:'DM Sans',sans-serif; font-size:13px; outline:none; transition:border-color .2s;
+    box-sizing:border-box; border-radius:4px;
+  }
+  .df-input:focus, .df-select:focus, .df-textarea:focus{border-color:var(--ac2);}
+  .df-input::placeholder, .df-textarea::placeholder{color:var(--g5);}
+  .df-group{margin-bottom:14px;}
+  .df-hint{font-size:11px; color:var(--t2); margin-top:5px;}
+
+  .diag-btn-main{
+    width:100%; background:var(--ac); color:var(--g0); border:none; padding:14px; font-size:12px; font-weight:500;
+    letter-spacing:0.16em; text-transform:uppercase; cursor:pointer; font-family:'DM Sans',sans-serif;
+    transition:opacity .2s; border-radius:2px; margin-top:6px;
+  }
+  .diag-btn-main:hover{opacity:.85;}
+  .diag-btn-main:disabled{background:var(--g3); color:var(--t2); cursor:default;}
+  .diag-btn-back{
+    padding:11px 20px; border:0.5px solid var(--g4); background:transparent; color:var(--t2);
+    font-size:11px; cursor:pointer; font-family:inherit; border-radius:2px; margin-right:8px;
+  }
+
+  .fin-row{padding:12px 0; border-bottom:0.5px solid var(--g4); display:flex; justify-content:space-between; align-items:flex-start;}
+  .fin-row:last-child{border-bottom:none;}
+  .fin-label{font-size:12px; color:var(--t1);}
+  .fin-sub{font-size:10px; color:var(--t2); margin-top:2px;}
+  .fin-val{font-size:15px; font-weight:500; white-space:nowrap; margin-left:12px;}
+
+  /* ---- Nuevo: fase (reemplaza "Paso X de 4") ---- */
+  .fase-indicador{display:flex; gap:6px; margin-bottom:20px;}
+  .fase-pill{
+    flex:1; height:3px; border-radius:100px; background:var(--g3);
+  }
+  .fase-pill.done{background:var(--ac2);}
+  .fase-pill.active{background:var(--ac);}
+  .fase-label{font-size:10px; letter-spacing:0.16em; text-transform:uppercase; color:var(--ac); margin-bottom:16px;}
+
+  /* ---- Pregunta a pantalla completa (reemplaza Likert) ---- */
+  .pregunta-texto{
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-size:21px; color:var(--t0);
+    line-height:1.4; margin-bottom:22px;
+  }
+  .registrando{
+    font-size:11px; color:var(--t2); text-align:center; padding:24px 0; letter-spacing:0.06em;
+  }
+  .dot-pulse{display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--ac); margin:0 2px; animation:pulse 1.2s infinite;}
+  .dot-pulse:nth-child(2){animation-delay:.2s;} .dot-pulse:nth-child(3){animation-delay:.4s;}
+  @keyframes pulse{0%,100%{opacity:.3;} 50%{opacity:1;}}
+
+  .pausa-link{display:block; text-align:center; font-size:11px; color:var(--t2); margin-top:18px; cursor:pointer;}
+  .pausa-link:hover{color:var(--ac);}
+
+  /* ---- Pregunta cerrada (escala) ---- */
+  .opcion-escala{
+    width:100%; text-align:left; background:var(--g2); border:0.5px solid var(--g4); color:var(--t1);
+    padding:13px 16px; margin-bottom:8px; border-radius:4px; font-family:'DM Sans',sans-serif; font-size:13px;
+    cursor:pointer; transition:all .15s;
+  }
+  .opcion-escala:hover{border-color:var(--ac2); color:var(--t0);}
+
+  /* ---- Pregunta multi-select ---- */
+  .opcion-multi{
+    display:flex; align-items:center; gap:10px; background:var(--g2); border:0.5px solid var(--g4);
+    padding:12px 14px; margin-bottom:8px; border-radius:4px; cursor:pointer; transition:border-color .15s;
+  }
+  .opcion-multi.checked{border-color:var(--ac2);}
+  .opcion-multi .caja{
+    width:15px; height:15px; border:0.5px solid var(--g5); border-radius:3px; flex-shrink:0; position:relative;
+  }
+  .opcion-multi.checked .caja{background:var(--ac2); border-color:var(--ac2);}
+  .opcion-multi .caja::after{content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--g0); opacity:0;}
+  .opcion-multi.checked .caja::after{opacity:1;}
+  .opcion-multi span{font-size:13px; color:var(--t1);}
+  .opcion-multi.checked span{color:var(--t0);}
+
+  .transicion-salto{
+    font-size:12px; color:var(--t2); text-align:center; padding:20px 0; font-style:italic;
+  }
+
+  /* ---- Resultado: capas sabemos/estimamos/proyectamos ---- */
+  .capa-label{font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ac2); margin:18px 0 8px;}
+  .capa-label:first-child{margin-top:0;}
+  .proyeccion-box{
+    background:var(--g2); border:0.5px dashed var(--g4); border-radius:4px; padding:14px 16px; margin-top:6px;
+  }
+  .proyeccion-box p{font-size:12px; color:var(--t1); line-height:1.65;}
+  .proyeccion-nota{font-size:10px; color:var(--t2); margin-top:8px; font-style:italic;}
+
+  /* ---- Selector de demo (solo para este boceto, no es parte del producto) ---- */
+  .demo-selector{max-width:480px; margin:0 auto 8px; padding:0 12px; display:flex; gap:8px; flex-wrap:wrap;}
+  .demo-btn{
+    font-size:10px; padding:6px 10px; background:var(--g2); border:0.5px solid var(--g4); color:var(--t2);
+    border-radius:100px; cursor:pointer;
+  }
+  .demo-btn.active{border-color:var(--ac); color:var(--ac);}
+  .demo-note{max-width:480px; margin:0 auto 20px; padding:0 12px; font-size:10px; color:var(--t2); text-align:center;}
+</style>
+</head>
+<body>
+
+<div class="demo-note">— boceto: los botones de abajo simulan avanzar el flujo real —</div>
+<div class="demo-selector" id="demo-nav"></div>
+
+<div class="diag-overlay">
+  <div class="diag-box" id="diag-content"></div>
+</div>
+
+<script>
+// ---- Secuencia híbrida: cerrada → multi-select → abierta → abierta (cierre) ----
+// Mapea 1:1 a las 4 condiciones: evidencia (cerrada) / recurrencia (implícita) / consecuencia (multi) / hipótesis (abierta)
+const SECUENCIA_DEMO = [
+  {
+    fase:"Exploración", tipo:"cerrada",
+    pregunta:"Cuando dirección toma una decisión importante, ¿qué tan clara llega a quienes tienen que ejecutarla?",
+    opciones:["Muy clara","Bastante clara","A veces clara, a veces no","Poco clara","Muy poco clara"]
+  },
+  {
+    fase:"Exploración", tipo:"multi",
+    pregunta:"Cuando una decisión no llega clara, ¿qué suele ocurrir?",
+    opciones:["Se demora la ejecución","Cada área interpreta algo diferente","Hay que rehacer el trabajo","Se consulta nuevamente a superiores","Aparecen conflictos"]
+  },
+  {
+    fase:"Profundización", tipo:"abierta",
+    pregunta:"Contame un ejemplo reciente en el que esto haya pasado."
+  },
+  {
+    fase:"Cierre", tipo:"abierta",
+    pregunta:"Antes de cerrar, ¿hay algo de esto que no te pregunté y te parece importante contar?"
+  }
+];
+
+let paso = 0; // 0=intro, 1=datos, 2=conversación, 3=salto (fenómeno descartado), 4=resultado
+let turno = 0;
+let escribiendo = false;
+let seleccionMulti = new Set();
+let datos = {N:"", S:"", R:""};
+let resultadoDemo = "confirmado"; // confirmado | ambiguo | insuficiente
+
+function goTo(p){ paso = p; render(); }
+
+function renderProgresoFase(faseActual){
+  const fases = ["Apertura","Exploración","Profundización","Cierre"];
+  const idx = fases.indexOf(faseActual);
+  const pills = fases.map((f,i)=>`<div class="fase-pill ${i<idx?'done':''} ${i===idx?'active':''}"></div>`).join("");
+  return `<div class="fase-indicador">${pills}</div><div class="fase-label">${faseActual}</div>`;
+}
+
+function renderIntro(){
+  return `<div style="text-align:center;padding:12px 0">
+    <div style="font-size:40px;margin-bottom:20px">◆</div>
+    <div class="serif" style="font-size:26px;color:var(--t0);line-height:1.2;margin-bottom:14px">
+      Índice de Salud Emocional<br>y Clima Organizacional
+    </div>
+    <div style="font-size:13px;color:var(--t1);line-height:1.8;margin-bottom:28px;max-width:400px;margin-left:auto;margin-right:auto">
+      Una conversación breve — no un formulario — que convierte lo que pasa en tu organización en una estimación financiera concreta.
+    </div>
+    <div style="display:flex;gap:20px;justify-content:center;margin-bottom:32px;flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--t2)">⏱ 8-15 min</span>
+      <span style="font-size:12px;color:var(--t2)">Confidencial</span>
+      <span style="font-size:12px;color:var(--t2)">Métricas ARS</span>
+      <span style="font-size:12px;color:var(--t2)">Sin costo</span>
+    </div>
+    <button class="diag-btn-main" style="max-width:320px" onclick="goTo(1)">Comenzar diagnóstico →</button>
+  </div>`;
+}
+
+function renderDatos(){
+  return `<div>
+    <div class="fase-label">Antes de empezar</div>
+    <div class="serif" style="font-size:22px;color:var(--t0);margin-bottom:8px">Tres datos de su organización</div>
+    <div style="font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:24px">Son estimaciones — la precisión exacta no es necesaria.</div>
+    <div class="df-group"><label class="df-label">Número total de empleados</label>
+      <input class="df-input" type="number" placeholder="Ej: 45" value="${datos.N}" oninput="datos.N=this.value"></div>
+    <div class="df-group"><label class="df-label">Salario promedio mensual bruto (ARS)</label>
+      <input class="df-input" type="number" placeholder="Ej: 850000" value="${datos.S}" oninput="datos.S=this.value"></div>
+    <div class="df-group"><label class="df-label">Tasa de rotación anual aproximada (%)</label>
+      <input class="df-input" type="number" placeholder="Ej: 15" value="${datos.R}" oninput="datos.R=this.value">
+      <div class="df-hint">Si no conocés el dato, podemos estimarlo durante la evaluación.</div></div>
+    <button class="diag-btn-main" onclick="goTo(2)">Empezar la conversación →</button>
+  </div>`;
+}
+
+function renderConversacion(){
+  const t = SECUENCIA_DEMO[turno];
+  if(escribiendo){
+    return `${renderProgresoFase(t.fase)}
+      <div class="registrando">Registrando esto<span class="dot-pulse"></span><span class="dot-pulse"></span><span class="dot-pulse"></span></div>`;
+  }
+  const esUltima = turno === SECUENCIA_DEMO.length - 1;
+
+  if(t.tipo === "cerrada"){
+    const opts = t.opciones.map(o=>`<button class="opcion-escala" onclick="responderCerrada('${o}')">${o}</button>`).join("");
+    return `<div>${renderProgresoFase(t.fase)}
+      <div class="pregunta-texto">"${t.pregunta}"</div>
+      ${opts}
+      <div class="pausa-link" onclick="alert('(demo) Se guarda el progreso y se puede retomar en 7 días con un link único.')">Continuar después</div>
+    </div>`;
+  }
+
+  if(t.tipo === "multi"){
+    const opts = t.opciones.map((o,i)=>`
+      <div class="opcion-multi ${seleccionMulti.has(i)?'checked':''}" onclick="toggleMulti(${i})">
+        <div class="caja"></div><span>${o}</span>
+      </div>`).join("");
+    return `<div>${renderProgresoFase(t.fase)}
+      <div class="pregunta-texto">"${t.pregunta}"</div>
+      ${opts}
+      <button class="diag-btn-main" onclick="avanzarTurno()">Continuar →</button>
+      <div class="pausa-link" onclick="alert('(demo) Se guarda el progreso y se puede retomar en 7 días con un link único.')">Continuar después</div>
+    </div>`;
+  }
+
+  // abierta
+  return `<div>
+    ${renderProgresoFase(t.fase)}
+    <div class="pregunta-texto">"${t.pregunta}"</div>
+    <textarea class="df-textarea" rows="4" placeholder="Escribí con la profundidad que quieras..."></textarea>
+    <button class="diag-btn-main" onclick="avanzarTurno()">${esUltima ? 'Finalizar diagnóstico' : 'Continuar'} →</button>
+    <div class="pausa-link" onclick="alert('(demo) Se guarda el progreso y se puede retomar en 7 días con un link único.')">Continuar después</div>
+  </div>`;
+}
+
+function responderCerrada(opcion){
+  // Regla de salto: si la respuesta indica claridad alta, no hay evidencia → se descarta
+  // el fenómeno sin gastar más preguntas (ni multi-select ni abierta).
+  if(opcion === "Muy clara" || opcion === "Bastante clara"){
+    goTo(3);
+    return;
+  }
+  avanzarTurno();
+}
+
+function avanzarTurno(){
+  escribiendo = true;
+  render();
+  setTimeout(()=>{
+    escribiendo = false;
+    if(turno < SECUENCIA_DEMO.length - 1){
+      turno++;
+      render();
+    } else {
+      goTo(4);
+    }
+  }, 900);
+}
+
+function toggleMulti(i){
+  seleccionMulti.has(i) ? seleccionMulti.delete(i) : seleccionMulti.add(i);
+  render();
+}
+
+function renderSalto(){
+  return `<div>
+    ${renderProgresoFase("Exploración")}
+    <div class="transicion-salto">Sin señales relevantes en este punto — seguimos con la siguiente pregunta.</div>
+    <button class="diag-btn-main" onclick="goTo(4)">Ver resultado (demo) →</button>
+  </div>`;
+}
+
+function renderResultado(){
+  // Motor económico (mismas fórmulas ya existentes en la landing) — esto es "lo que estimamos": aritmética pura sobre datos ingresados
+  const N = parseFloat(datos.N)||45, S = parseFloat(datos.S)||850000, R = (parseFloat(datos.R)||15)/100;
+  const factor = 0.75;
+  const presentismo = N*S*12*0.048, rotacion = (N*R)*(S*3)*factor;
+  const total = presentismo+rotacion;
+  const fmt = n => "$" + Math.round(n).toLocaleString("es-AR");
+
+  let bloqueSabemos = "";
+  if(resultadoDemo === "confirmado"){
+    bloqueSabemos = `
+      <div class="serif" style="font-size:20px;color:var(--t0);margin-bottom:10px">Señal principal detectada</div>
+      <div style="font-size:13px;color:var(--t1);line-height:1.7">
+        La principal señal está relacionada con cómo las decisiones se traducen al bajar de nivel jerárquico —
+        esto suele generar retrabajo y demoras.
+      </div>`;
+  } else if(resultadoDemo === "ambiguo"){
+    bloqueSabemos = `
+      <div class="serif" style="font-size:20px;color:var(--t0);margin-bottom:10px">Más de una señal relevante</div>
+      <div style="font-size:13px;color:var(--t1);line-height:1.7;margin-bottom:16px">
+        Detectamos más de una señal relevante en tu organización y, con esta primera evaluación,
+        no sería responsable reducirla a una sola causa.
+      </div>
+      <button class="diag-btn-main" style="background:transparent;border:0.5px solid var(--ac2);color:var(--ac)">Diagnóstico EC con un profesional</button>`;
+  } else {
+    bloqueSabemos = `
+      <div class="serif" style="font-size:20px;color:var(--t0);margin-bottom:10px">Necesitamos un poco más de información</div>
+      <div style="font-size:13px;color:var(--t1);line-height:1.7">
+        Con esta primera conversación no encontramos suficientes señales concretas para estimar el impacto.
+      </div>`;
+  }
+
+  const bloqueEstimamos = resultadoDemo !== "insuficiente" ? `
+    <div class="capa-label">Lo que estimamos</div>
+    <div class="fin-row"><div><div class="fin-label">Pérdida anual estimada</div><div class="fin-sub">Presentismo + rotación no deseada, a partir de tus propios datos</div></div>
+      <div class="fin-val">${fmt(total)}</div></div>
+  ` : "";
+
+  const bloqueProyectamos = resultadoDemo !== "insuficiente" ? `
+    <div class="capa-label">Lo que proyectamos</div>
+    <div class="proyeccion-box">
+      <p>Abordar esto profesionalmente suele reducir una parte significativa de esa pérdida. El alcance real —
+      cuánto y en qué plazo — depende del caso y todavía no está validado para tu organización.</p>
+      <div class="proyeccion-nota">Esta cifra se define en una evaluación con un Counselor, no en este autodiagnóstico.</div>
+    </div>
+  ` : "";
+
+  return `<div>
+    <div class="capa-label">Lo que sabemos</div>
+    ${bloqueSabemos}
+    ${bloqueEstimamos}
+    ${bloqueProyectamos}
+    <div style="height:16px"></div>
+    <button class="diag-btn-main" onclick="goTo(0);turno=0;seleccionMulti=new Set();">Reiniciar (demo)</button>
+  </div>`;
+}
+
+function render(){
+  const box = document.getElementById("diag-content");
+  if(paso===0) box.innerHTML = renderIntro();
+  else if(paso===1) box.innerHTML = renderDatos();
+  else if(paso===2) box.innerHTML = renderConversacion();
+  else if(paso===3) box.innerHTML = renderSalto();
+  else if(paso===4) box.innerHTML = renderResultado();
+  renderDemoNav();
+}
+
+function renderDemoNav(){
+  const nav = document.getElementById("demo-nav");
+  const opciones = [
+    {id:"confirmado", label:"Ver resultado: DOMINANTE_CONFIRMED"},
+    {id:"ambiguo", label:"Ver resultado: DOMINANTE_AMBIGUOUS"},
+    {id:"insuficiente", label:"Ver resultado: SIN_EVIDENCIA_SUFICIENTE"}
+  ];
+  nav.innerHTML = opciones.map(o=>`<button class="demo-btn ${resultadoDemo===o.id?'active':''}" onclick="resultadoDemo='${o.id}'; goTo(4)">${o.label}</button>`).join("");
+}
+
+render();
+</script>
+</body>
+</html>

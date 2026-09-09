@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espacio Crítico — Diagnóstico EC (Boceto B)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --g0:#0a0806; --g1:#100e0a; --g2:#1a1710; --g3:#231f18; --g4:#2e2820; --g5:#3e3528;
+    --t0:#f2ede4; --t1:#b8ae9c; --t2:#7a7060;
+    --ac:#c4a87e; --ac2:#9e8860; --sand:#d6c09a;
+    --ok:#8fae86; --warn:#c48e6a;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--g0); color:var(--t0);
+    font-family:'DM Sans',sans-serif; font-weight:300;
+    -webkit-font-smoothing:antialiased;
+  }
+  .serif{font-family:'Cormorant Garamond',serif;}
+  button{font-family:inherit; cursor:pointer;}
+
+  /* ---- Shell ---- */
+  .app{max-width:1180px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column;}
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 32px; border-bottom:0.5px solid var(--g4);
+  }
+  .brand{font-family:'Cormorant Garamond',serif; font-size:19px; letter-spacing:0.04em; color:var(--t0);}
+  .brand span{color:var(--ac);}
+  .stepper{display:flex; gap:0; }
+  .step{
+    display:flex; align-items:center; gap:8px; padding:0 18px;
+    border-left:0.5px solid var(--g4); font-size:11px; letter-spacing:0.08em;
+    color:var(--t2); text-transform:uppercase;
+  }
+  .step:first-child{border-left:none;}
+  .step.active{color:var(--ac);}
+  .step-num{
+    width:18px;height:18px;border-radius:50%;
+    border:0.5px solid var(--g5); display:flex;align-items:center;justify-content:center;
+    font-size:10px; font-family:'DM Sans',sans-serif;
+  }
+  .step.active .step-num{border-color:var(--ac); color:var(--ac);}
+
+  main{flex:1; padding:40px 32px 60px;}
+  .screen{display:none;}
+  .screen.active{display:block; animation:fadeIn .35s ease;}
+  @keyframes fadeIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---- A. Inicio ---- */
+  .inicio-wrap{max-width:520px; margin:40px auto 0;}
+  .inicio-eyebrow{font-size:11px; letter-spacing:0.14em; color:var(--t2); text-transform:uppercase; margin-bottom:14px;}
+  h1.serif{font-size:34px; font-weight:400; line-height:1.15; color:var(--t0); margin-bottom:10px;}
+  .sub{color:var(--t1); font-size:14.5px; line-height:1.6; margin-bottom:36px;}
+  .field{margin-bottom:20px;}
+  .field label{display:block; font-size:12px; color:var(--t2); margin-bottom:7px;}
+  .field input, .field select{
+    width:100%; background:var(--g2); border:0.5px solid var(--g4); color:var(--t0);
+    padding:12px 14px; font-family:'DM Sans',sans-serif; font-size:14px; outline:none;
+  }
+  .field input:focus, .field select:focus{border-color:var(--ac2);}
+  .consent-box{
+    background:var(--g1); border:0.5px solid var(--g4); padding:18px 20px; margin:28px 0;
+    font-size:13px; color:var(--t1); line-height:1.6;
+  }
+  .consent-box strong{color:var(--t0); font-weight:500;}
+  .toggle-row{display:flex; align-items:center; gap:12px; margin-top:14px;}
+  .switch{width:38px; height:20px; background:var(--g4); border-radius:100px; position:relative; border:0.5px solid var(--g5);}
+  .switch.on{background:var(--ac2);}
+  .switch::after{content:'';position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--t0); transition:left .2s;}
+  .switch.on::after{left:19px;}
+  .btn-primary{
+    width:100%; background:var(--ac); color:var(--g0); border:none; padding:15px;
+    font-size:11px; letter-spacing:0.16em; text-transform:uppercase; font-weight:500;
+    margin-top:8px;
+  }
+  .btn-primary:hover{opacity:0.9;}
+
+  /* ---- B. Conversación EC ---- */
+  .conv-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;}
+  .empresa-tag{font-size:12px; color:var(--t2);}
+  .empresa-tag b{color:var(--t1); font-weight:500;}
+  .listening{display:flex; align-items:center; gap:8px; font-size:11px; letter-spacing:0.1em; color:var(--ok); text-transform:uppercase;}
+  .dot{width:7px;height:7px;border-radius:50%; background:var(--ok); animation:pulse 1.6s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.25;}}
+
+  .conv-grid{display:grid; grid-template-columns:1.1fr 0.9fr; gap:0; border:0.5px solid var(--g4);}
+  .transcript{padding:26px 28px; border-right:0.5px solid var(--g4); max-height:440px; overflow-y:auto;}
+  .transcript-label{font-size:11px; letter-spacing:0.1em; color:var(--t2); text-transform:uppercase; margin-bottom:18px;}
+  .line{margin-bottom:20px; font-size:14.5px; line-height:1.65;}
+  .line .who{font-size:11px; color:var(--t2); margin-bottom:4px; letter-spacing:0.04em;}
+  .line.counselor .who{color:var(--ac);}
+  .line p{color:var(--t1);}
+  .line.counselor p{color:var(--t0); font-family:'Cormorant Garamond',serif; font-size:17px; font-style:italic;}
+
+  .mapa-panel{padding:26px 28px; background:var(--g1);}
+  .mapa-label{font-size:11px; letter-spacing:0.1em; color:var(--t2); text-transform:uppercase; margin-bottom:18px;}
+  .fen-chip{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 14px; margin-bottom:10px; background:var(--g2); border:0.5px solid var(--g4);
+    font-size:13px;
+  }
+  .fen-chip.confirmado{border-left:2px solid var(--ok);}
+  .fen-chip.observacion{border-left:2px solid var(--warn); opacity:0.75;}
+  .fen-name{color:var(--t0);}
+  .fen-state{font-size:10.5px; color:var(--t2); text-transform:uppercase; letter-spacing:0.06em;}
+
+  .suggest-strip{
+    border:0.5px solid var(--g4); border-top:none; padding:18px 28px; background:var(--g2);
+  }
+  .suggest-label{font-size:11px; color:var(--t2); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:12px;}
+  .pill-row{display:flex; gap:10px; flex-wrap:wrap;}
+  .pill{
+    background:var(--g3); border:0.5px solid var(--g5); color:var(--t1);
+    padding:10px 16px; font-size:13px; border-radius:100px;
+  }
+  .pill:hover{border-color:var(--ac2); color:var(--t0);}
+
+  /* ---- C. Resultado ---- */
+  .res-header{display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:30px;}
+  .res-header h2{font-size:26px; font-weight:400;}
+  .res-sub{color:var(--t2); font-size:13px; margin-top:4px;}
+  .fen-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--g4); border:0.5px solid var(--g4); margin-bottom:36px;}
+  .fen-card{background:var(--g1); padding:26px 26px;}
+  .fen-card-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;}
+  .fen-card h3{font-family:'Cormorant Garamond',serif; font-size:21px; font-weight:500; color:var(--t0);}
+  .badge{font-size:10px; letter-spacing:0.06em; text-transform:uppercase; padding:4px 9px; border:0.5px solid var(--ok); color:var(--ok);}
+  .metric-row{display:flex; gap:22px; margin:14px 0 12px;}
+  .metric{flex:1;}
+  .metric-label{font-size:10.5px; color:var(--t2); text-transform:uppercase; letter-spacing:0.06em; margin-bottom:6px;}
+  .bar-track{height:4px; background:var(--g3); position:relative;}
+  .bar-fill{height:100%; background:var(--ac);}
+  .fen-mech{font-size:13px; color:var(--t1); line-height:1.6; margin-top:10px;}
+
+  .relacion-box{
+    background:var(--g1); border:0.5px solid var(--g4); padding:24px 26px; margin-bottom:36px;
+    display:flex; align-items:center; gap:24px;
+  }
+  .rel-symbol{font-family:'Cormorant Garamond',serif; font-size:38px; color:var(--ac); font-weight:300;}
+  .rel-text h4{font-size:15px; color:var(--t0); margin-bottom:5px; font-weight:500;}
+  .rel-text p{font-size:13px; color:var(--t1); line-height:1.6;}
+
+  .perdida-row{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--g4); border:0.5px solid var(--g4);}
+  .perdida-card{background:var(--g2); padding:24px 26px;}
+  .perdida-num{font-family:'Cormorant Garamond',serif; font-size:30px; color:var(--t0); font-weight:400;}
+  .perdida-label{font-size:11px; color:var(--t2); text-transform:uppercase; letter-spacing:0.06em; margin-top:6px;}
+
+  /* ---- D. Intervención ---- */
+  .caso-tag{
+    display:inline-block; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--ac); border:0.5px solid var(--ac2); padding:6px 14px; margin-bottom:20px;
+  }
+  .interv-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--g4); border:0.5px solid var(--g4); margin-bottom:30px;}
+  .interv-card{background:var(--g1); padding:28px;}
+  .interv-card h3{font-family:'Cormorant Garamond',serif; font-size:20px; margin-bottom:14px; color:var(--t0);}
+  .interv-card .k{font-size:11px; color:var(--t2); text-transform:uppercase; letter-spacing:0.06em; margin-top:16px; margin-bottom:5px;}
+  .interv-card .v{font-size:14px; color:var(--t1); line-height:1.6;}
+  .horizonte-row{display:flex; gap:1px; background:var(--g4); border:0.5px solid var(--g4); margin-bottom:34px;}
+  .horizonte-card{flex:1; background:var(--g2); padding:20px; text-align:center;}
+  .horizonte-card .h-label{font-size:11px; color:var(--t2); text-transform:uppercase; margin-bottom:8px;}
+  .horizonte-card .h-num{font-family:'Cormorant Garamond',serif; font-size:24px; color:var(--ac);}
+  .approve-row{display:flex; gap:14px; justify-content:flex-end;}
+  .btn-ghost{background:transparent; border:0.5px solid var(--g5); color:var(--t1); padding:13px 26px; font-size:11px; letter-spacing:0.1em; text-transform:uppercase;}
+  .btn-approve{background:var(--ac); color:var(--g0); border:none; padding:13px 30px; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; font-weight:500;}
+
+  @media (max-width:860px){
+    .conv-grid, .fen-grid, .interv-grid{grid-template-columns:1fr;}
+    .stepper{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">Espacio<span>·</span>Crítico <span style="color:var(--t2); font-weight:300; font-size:13px; margin-left:6px;">— diagnóstico EC</span></div>
+    <div class="stepper">
+      <div class="step active" data-step="A"><span class="step-num">1</span> Inicio</div>
+      <div class="step" data-step="B"><span class="step-num">2</span> Conversación</div>
+      <div class="step" data-step="C"><span class="step-num">3</span> Resultado</div>
+      <div class="step" data-step="D"><span class="step-num">4</span> Intervención</div>
+    </div>
+  </div>
+
+  <main>
+
+    <!-- A. INICIO -->
+    <section class="screen active" id="screen-A">
+      <div class="inicio-wrap">
+        <div class="inicio-eyebrow">Nuevo diagnóstico</div>
+        <h1 class="serif">Empecemos por conocer a la organización.</h1>
+        <p class="sub">Estos datos alimentan el motor económico y le dan contexto al motor diagnóstico antes de la primera pregunta.</p>
+
+        <div class="field">
+          <label>Nombre de la empresa</label>
+          <input type="text" placeholder="Ej. Manufacturas del Sur S.A.">
+        </div>
+        <div class="field">
+          <label>Sector</label>
+          <select><option>Industria / manufactura</option><option>Servicios</option><option>Tecnología</option><option>Retail</option></select>
+        </div>
+        <div class="field">
+          <label>Cantidad de empleados</label>
+          <input type="number" placeholder="Ej. 140">
+        </div>
+        <div class="field">
+          <label>Salario promedio mensual</label>
+          <input type="number" placeholder="Ej. 850.000">
+        </div>
+        <div class="field">
+          <label>Tasa de rotación anual estimada (%)</label>
+          <input type="number" placeholder="Ej. 22">
+        </div>
+
+        <div class="consent-box">
+          <strong>Modo de captura de esta entrevista</strong><br>
+          La IA transcribe la conversación en tiempo real para poder adaptar las preguntas. El audio no se conserva salvo que lo indiques.
+          <div class="toggle-row">
+            <div class="switch on"></div>
+            <span style="font-size:13px; color:var(--t1);">Transcripción en vivo — consentimiento del entrevistado registrado</span>
+          </div>
+        </div>
+
+        <button class="btn-primary" onclick="goTo('B')">Comenzar entrevista</button>
+      </div>
+    </section>
+
+    <!-- B. CONVERSACIÓN -->
+    <section class="screen" id="screen-B">
+      <div class="conv-top">
+        <div class="empresa-tag">Manufacturas del Sur S.A. · <b>Sebastián Ríos</b>, Gerente de Operaciones</div>
+        <div class="listening"><span class="dot"></span> Escuchando</div>
+      </div>
+
+      <div class="conv-grid">
+        <div class="transcript">
+          <div class="transcript-label">Transcripción en vivo</div>
+
+          <div class="line counselor">
+            <div class="who">Consultor</div>
+            <p>¿Cómo llegan las decisiones de dirección hasta quienes tienen que ejecutarlas?</p>
+          </div>
+          <div class="line">
+            <div class="who">Sebastián</div>
+            <p>Y... depende. A veces se pierde bastante en el camino, la verdad. Sobre todo cuando pasa por dos o tres jefaturas antes de llegar al piso.</p>
+          </div>
+          <div class="line counselor">
+            <div class="who">Consultor</div>
+            <p>¿Qué pasa concretamente cuando eso ocurre?</p>
+          </div>
+          <div class="line">
+            <div class="who">Sebastián</div>
+            <p>Terminamos rehaciendo cosas. La semana pasada tuvimos que repetir un pedido completo porque la instrucción llegó distinta a como salió de dirección.</p>
+          </div>
+          <div class="line counselor">
+            <div class="who">Consultor</div>
+            <p>¿Y cómo llegan los equipos a un viernes, en general?</p>
+          </div>
+          <div class="line">
+            <div class="who">Sebastián</div>
+            <p>Cansados. Más que antes, eso seguro. Tuvimos varias licencias este último trimestre que antes no veíamos.</p>
+          </div>
+        </div>
+
+        <div class="mapa-panel">
+          <div class="mapa-label">Mapa EC — en construcción</div>
+
+          <div class="fen-chip confirmado">
+            <span class="fen-name">Mandos medios</span>
+            <span class="fen-state">Confirmado</span>
+          </div>
+          <div class="fen-chip observacion">
+            <span class="fen-name">Desgaste / sobrecarga</span>
+            <span class="fen-state">En observación</span>
+          </div>
+          <div class="fen-chip" style="opacity:0.4;">
+            <span class="fen-name">Clima y vínculos</span>
+            <span class="fen-state">Sin evidencia</span>
+          </div>
+          <div class="fen-chip" style="opacity:0.4;">
+            <span class="fen-name">Transición</span>
+            <span class="fen-state">Sin evidencia</span>
+          </div>
+          <div class="fen-chip" style="opacity:0.4;">
+            <span class="fen-name">Estructura</span>
+            <span class="fen-state">Sin evidencia</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="suggest-strip">
+        <div class="suggest-label">Posibles próximas preguntas</div>
+        <div class="pill-row">
+          <button class="pill">¿Qué cambió en la carga de trabajo este último año?</button>
+          <button class="pill">¿Esas licencias se concentran en algún equipo puntual?</button>
+          <button class="pill">¿Qué cree que hace que la instrucción se pierda en el camino?</button>
+        </div>
+      </div>
+
+      <div style="text-align:right; margin-top:24px;">
+        <button class="btn-ghost" onclick="goTo('C')" style="border-color:var(--ac2); color:var(--ac);">Cerrar diagnóstico →</button>
+      </div>
+    </section>
+
+    <!-- C. RESULTADO -->
+    <section class="screen" id="screen-C">
+      <div class="res-header">
+        <div>
+          <h2 class="serif">Mapa EC</h2>
+          <div class="res-sub">Manufacturas del Sur S.A. · 12 preguntas · 34 min</div>
+        </div>
+      </div>
+
+      <div class="fen-grid">
+        <div class="fen-card">
+          <div class="fen-card-top">
+            <h3>Mandos medios</h3>
+            <span class="badge">Confirmado</span>
+          </div>
+          <div class="metric-row">
+            <div class="metric">
+              <div class="metric-label">Intensidad</div>
+              <div class="bar-track"><div class="bar-fill" style="width:78%;"></div></div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Confianza</div>
+              <div class="bar-track"><div class="bar-fill" style="width:85%; background:var(--ok);"></div></div>
+            </div>
+          </div>
+          <p class="fen-mech">La decisión se reinterpreta al bajar de nivel jerárquico — retrabajo y demoras en ejecución.</p>
+        </div>
+
+        <div class="fen-card">
+          <div class="fen-card-top">
+            <h3>Desgaste / sobrecarga</h3>
+            <span class="badge">Confirmado</span>
+          </div>
+          <div class="metric-row">
+            <div class="metric">
+              <div class="metric-label">Intensidad</div>
+              <div class="bar-track"><div class="bar-fill" style="width:62%;"></div></div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Confianza</div>
+              <div class="bar-track"><div class="bar-fill" style="width:70%; background:var(--ok);"></div></div>
+            </div>
+          </div>
+          <p class="fen-mech">Demanda sostenida supera la capacidad de recuperación — presentismo y licencias por salud.</p>
+        </div>
+      </div>
+
+      <div class="relacion-box">
+        <div class="rel-symbol">A ⊥ B</div>
+        <div class="rel-text">
+          <h4>Co-dominantes</h4>
+          <p>Las cadenas explicativas de "Mandos medios" y "Desgaste" son independientes entre sí — ninguna explica la aparición de la otra. Ambos fenómenos pesan por separado en la pérdida detectada.</p>
+        </div>
+      </div>
+
+      <div class="perdida-row">
+        <div class="perdida-card">
+          <div class="perdida-num">$14.2M</div>
+          <div class="perdida-label">Pérdida anual estimada</div>
+        </div>
+        <div class="perdida-card">
+          <div class="perdida-num">30–45%</div>
+          <div class="perdida-label">Reducción estimada (ajustada)</div>
+        </div>
+        <div class="perdida-card">
+          <div class="perdida-num">6–12m</div>
+          <div class="perdida-label">Horizonte esperado</div>
+        </div>
+      </div>
+
+      <div style="text-align:right; margin-top:30px;">
+        <button class="btn-ghost" onclick="goTo('D')" style="border-color:var(--ac2); color:var(--ac);">Ver propuesta de intervención →</button>
+      </div>
+    </section>
+
+    <!-- D. INTERVENCIÓN -->
+    <section class="screen" id="screen-D">
+      <div class="caso-tag">Caso 2 · Co-dominantes</div>
+      <h2 class="serif" style="font-size:26px; margin-bottom:26px;">Intervención bifocal propuesta</h2>
+
+      <div class="interv-grid">
+        <div class="interv-card">
+          <h3>Frente A — Mandos medios</h3>
+          <div class="k">Traducción humana</div>
+          <div class="v">Coaching de liderazgo intermedio y entrenamiento en comunicación descendente y toma de decisión.</div>
+          <div class="k">Reversibilidad esperada</div>
+          <div class="v">Alta y rápida — rol puntual, entrenable.</div>
+        </div>
+        <div class="interv-card">
+          <h3>Frente B — Desgaste</h3>
+          <div class="k">Traducción humana</div>
+          <div class="v">Rediseño de carga de trabajo y espacios reales de recuperación, no solo discurso de bienestar.</div>
+          <div class="k">Reversibilidad esperada</div>
+          <div class="v">Media-baja al inicio, sube con el tiempo — es fisiológico, no solo organizativo.</div>
+        </div>
+      </div>
+
+      <div class="horizonte-row">
+        <div class="horizonte-card"><div class="h-label">6 meses</div><div class="h-num">12–20%</div></div>
+        <div class="horizonte-card"><div class="h-label">12 meses</div><div class="h-num">25–38%</div></div>
+        <div class="horizonte-card"><div class="h-label">24 meses</div><div class="h-num">38–50%</div></div>
+      </div>
+      <div style="text-align:center; font-size:11px; color:var(--t2); font-style:italic; margin-top:-24px; margin-bottom:34px;">
+        Proyección estimada, no validada empíricamente — sujeta a seguimiento post-intervención
+      </div>
+
+      <div class="approve-row">
+        <button class="btn-ghost">Editar propuesta</button>
+        <button class="btn-approve">Aprobar y enviar a la empresa</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+  function goTo(step){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById('screen-'+step).classList.add('active');
+    document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+    document.querySelector('.step[data-step="'+step+'"]').classList.add('active');
+  }
+  document.querySelectorAll('.step').forEach(el=>{
+    el.addEventListener('click', ()=>goTo(el.dataset.step));
+  });
+</script>
+</body>
+</html>

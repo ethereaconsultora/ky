@@ -1,0 +1,168 @@
+openapi: 3.0.3
+info:
+  title: KY API — Copiloto de diagnóstico de Espacio Crítico (Versión B)
+  version: 0.1.0
+  description: >
+    Borrador. Endpoints BFF de la app de tablet. Auth por sesión de Supabase
+    (cookie), verificada server-side con getUser(). Los endpoints que llaman a un
+    modelo o al STT están detrás de rate limit (Upstash).
+servers:
+  - url: /
+security:
+  - supabaseSession: []
+components:
+  securitySchemes:
+    supabaseSession:
+      type: apiKey
+      in: cookie
+      name: sb-access-token
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+    Condiciones:
+      type: object
+      properties:
+        evidencia: { type: boolean }
+        recurrencia: { type: boolean }
+        consecuencia: { type: boolean }
+        hipotesis_plausible: { type: boolean }
+    FenomenoActualizado:
+      type: object
+      properties:
+        fenomeno:
+          type: string
+          enum: [mandos_medios, clima_vinculos, desgaste, transicion, estructura]
+        condiciones: { $ref: '#/components/schemas/Condiciones' }
+        estado: { type: string, enum: [confirmado, en_observacion, descartado] }
+        intensidad: { type: string, enum: [leve, moderado, severo, critico], nullable: true }
+        confianza: { type: string, enum: [baja, media, alta], nullable: true }
+        mecanismo_organizacional: { type: string, nullable: true }
+        consecuencia_operativa: { type: string, nullable: true }
+        indicador_economico_afectado:
+          type: string
+          enum: [presentismo, rotacion, horas_improductivas, friccion]
+          nullable: true
+        mecanismos:
+          type: array
+          items:
+            type: object
+            properties:
+              hilo: { type: string }
+              evidencia: { type: string }
+    TurnoRequest:
+      type: object
+      required: [diagnostico_id, respuesta_texto]
+      properties:
+        diagnostico_id: { type: string, format: uuid }
+        respuesta_texto: { type: string, maxLength: 8000 }
+        fenomeno_en_curso:
+          type: string
+          nullable: true
+    TurnoResponse:
+      type: object
+      properties:
+        fenomenos_actualizados:
+          type: array
+          items: { $ref: '#/components/schemas/FenomenoActualizado' }
+        accion: { type: string, enum: [cerrar, saltar, profundizar] }
+        fenomeno_siguiente_prioridad: { type: string, nullable: true }
+        fin_diagnostico: { type: boolean }
+        sugerencias_pregunta:
+          type: array
+          items: { type: string }
+          minItems: 2
+          maxItems: 3
+        alerta_seguridad: { type: boolean }
+    SintesisResponse:
+      type: object
+      properties:
+        relaciones:
+          type: array
+          items:
+            type: object
+            properties:
+              fenomeno_a: { type: string }
+              fenomeno_b: { type: string }
+              tipo: { type: string, enum: [A_B, B_A, A_HIP_B, A_CONF_B, A_PERP_B, A_ABIERTO_B] }
+              evidencia_soporte: { type: string }
+        caso: { type: integer, minimum: 1, maximum: 4 }
+        intervenciones:
+          type: array
+          items:
+            type: object
+            properties:
+              fenomenos_objetivo: { type: array, items: { type: string } }
+              descripcion: { type: string }
+              traduccion_humana: { type: string }
+              reversibilidad:
+                type: object
+                properties:
+                  grado_temprano: { type: number }
+                  grado_tardio: { type: number }
+                  plazo_aparicion_efecto: { type: string, enum: [inmediato, corto, medio, largo] }
+                  justificacion: { type: string }
+              horizonte_proyeccion: { type: string, enum: [6m, 12m, 24m] }
+        punto_accesibilidad: { type: string, nullable: true }
+        aprobada_por_consultor: { type: boolean, default: false }
+paths:
+  /api/diagnostico:
+    post:
+      summary: Crear diagnóstico
+      responses:
+        '201': { description: Creado, content: { application/json: { schema: { type: object, properties: { diagnostico_id: { type: string, format: uuid } } } } } }
+        '400': { description: Body inválido, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+  /api/diagnostico/{id}:
+    get:
+      summary: Estado del diagnóstico
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { description: OK }
+        '403': { description: No autorizado }
+        '404': { description: No encontrado }
+  /api/diagnostico/{id}/cerrar:
+    post:
+      summary: Cerrar diagnóstico (dispara síntesis + motor económico)
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SintesisResponse' } } } }
+  /api/turno:
+    post:
+      summary: Motor de Turno
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/TurnoRequest' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TurnoResponse' } } } }
+        '429': { description: Rate limit }
+  /api/sintesis:
+    post:
+      summary: Motor de Síntesis
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/SintesisResponse' } } } }
+  /api/sintesis/mensaje:
+    post:
+      summary: Redacción del mensaje de cierre
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { mensaje_cierre: { type: string } } } } } }
+  /api/stt/token:
+    post:
+      summary: Token efímero para el proveedor de STT
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: object, properties: { token: { type: string }, expires_in: { type: integer } } } } } }
+        '429': { description: Rate limit }
+  /api/intervencion/{id}/aprobar:
+    post:
+      summary: Aprobar la intervención propuesta
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: OK } }
+  /api/intervencion/{id}/enviar:
+    post:
+      summary: Generar artefacto y enviar a la empresa
+      parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+      responses: { '200': { description: OK, content: { application/json: { schema: { type: object, properties: { artefacto_url: { type: string } } } } } } }

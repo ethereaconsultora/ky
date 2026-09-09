@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* ============================================================
+   KY — Design System (Etherea DS, identidad Espacio Crítico)
+   Ver DESIGN_SYSTEM.md. Tokens base; componentes en /components.
+   ============================================================ */
+:root {
+  --g0:#0a0806; --g1:#100e0a; --g2:#1a1710; --g3:#231f18; --g4:#2e2820; --g5:#3e3528;
+  --t0:#f2ede4; --t1:#b8ae9c; --t2:#7a7060;
+  --ac:#c4a87e; --ac2:#9e8860; --sand:#d6c09a;
+  --ok:#8fae86; --warn:#c48e6a; --err:#c0625a;
+  --border: rgba(196,168,126,0.12);
+  --border-strong: rgba(196,168,126,0.28);
+  --radius-sm:4px; --radius-md:8px; --radius-lg:14px; --radius-xl:18px;
+  --font-body: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-cormorant), Georgia, 'Times New Roman', serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--g0);
+  color: var(--t0);
+  font-family: var(--font-body);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+.serif { font-family: var(--font-display); }
+button { font-family: inherit; cursor: pointer; }
