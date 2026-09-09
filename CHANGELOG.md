@@ -49,7 +49,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) · SemVer.
 - `supabase/roles/newen_reader.sql` (rol de solo lectura, se corre a mano en Fase 0).
 - `supabase/seed.sql` (consentimiento placeholder), `supabase/README.md`.
 
+### Added — capa de IA (`lib/ia/`)
+- Núcleo BFF del Motor de Turno: `ClienteModelo` inyectable, `ejecutarTurno()` (orquestación
+  pura), `clienteAnthropic()` (SDK), Zod de las 3 salidas (`validar.ts`), normalización de la
+  transcripción PSAI B1 + saneo B4 (`normalizar.ts`). 9 tests con doble del cliente.
+- `@anthropic-ai/sdk` `^0.68.0` → `^0.124.0`.
+
 ### Pendiente
-- Shell de la tablet, endpoint `/api/turno`, STT, motor de síntesis, pantallas, integración Newen.
+- Route Handlers (`/api/turno`, `/api/sintesis`, …) + STT + pantallas + integración Newen.
 - Aplicar migraciones contra el proyecto Supabase real (Fase 0) + trigger de alta en `public.users`.
 - Sesión con Ari para calibrar `mapa-indagacion.config` y los umbrales.

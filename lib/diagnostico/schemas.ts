@@ -4,6 +4,10 @@
  * en la capa de la API y el modelo reintenta si no valida (sin parsing manual).
  *
  * Draft 2020-12, `additionalProperties: false`, todos los campos en `required`.
+ *
+ * Contraparte ejecutable: `lib/ia/validar.ts` (Zod), que re-valida la respuesta
+ * en runtime. Si cambia un esquema, cambian los dos — el test
+ * `lib/ia/motor-turno.test.ts` los cruza.
  */
 
 import { CONDICIONES, FENOMENOS } from "./types.ts";

@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:dominio": "node --test --experimental-strip-types \"lib/diagnostico/**/*.test.ts\""
+    "test:dominio": "node --test --experimental-strip-types \"lib/diagnostico/**/*.test.ts\"",
+    "test:ia": "node --test --experimental-strip-types \"lib/ia/**/*.test.ts\"",
+    "test": "node --test --experimental-strip-types \"lib/**/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",

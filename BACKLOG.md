@@ -44,11 +44,15 @@
 
 ## Fase 4 — Motor de Turno
 
-- ⬜ `POST /api/turno` (BFF → Claude `claude-haiku-4-5`, `output_config.format`).
-- ⬜ Estado de fenómenos/mecanismos persistido en DB.
-- ⬜ Rate limit Upstash.
+- ✅ `lib/ia/` — núcleo BFF: `ClienteModelo` inyectable, Zod de salidas (`validar.ts`),
+  `ejecutarTurno()` (orquestación pura), `clienteAnthropic()` (SDK). 9 tests con doble.
+- ✅ Normalización + filtro PSAI B1 sobre la transcripción (`normalizar.ts`) + saneo B4.
+- ✅ `@anthropic-ai/sdk` 0.68 → 0.124 (`output_config.format`, adaptive thinking).
+- ⬜ `POST /api/turno` (Route Handler: auth `getUser()` + rate limit Upstash + persistencia).
+- ⬜ Estado de fenómenos/mecanismos persistido en DB (`fenomeno_detectado`, `respuesta_cruda`
+  cifrada, `llamada_ia` con `meta`).
+- ⬜ Smoke test de `cliente.ts` contra la API real (`ANTHROPIC_API_KEY`).
 - ⬜ Eval de amplitud/profundidad con Ari (transcripciones ficticias tipo Alemany).
-- ⬜ Normalización + filtro PSAI B1 sobre la transcripción.
 
 ## Fase 5 — Pantalla Conversación
 

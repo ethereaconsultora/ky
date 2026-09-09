@@ -140,3 +140,48 @@ cada tabla; script aparte para el rol `newen_reader`; README del directorio.
 
 **Próximo paso**: Fase 0 externa. Después Fase 4 — `/api/turno` (BFF → Claude `claude-haiku-4-5`
 con `output_config.format` = `SCHEMA_MOTOR_TURNO`), testeable con SDK de Claude mockeado.
+
+---
+
+### [2026-09-09] — Fase 4 (parcial): núcleo BFF `lib/ia/`
+
+**Prompt**: "seguimos".
+
+**Acción esperada**: construir la parte de Fase 4 que no depende de Fase 0/3 — la lógica pura
+de los motores de IA, inyectable y testeable con un doble del cliente de Claude. Bump del SDK.
+
+**Resultado**: ✅ `lib/ia/` completo. `tsc --noEmit` limpio · `lint` sin warnings ·
+`npm test` 26/26 (17 dominio + 9 IA) · `build` OK.
+
+**Archivos tocados**:
+- `package.json`: `@anthropic-ai/sdk` `^0.68.0` → `^0.124.0` (necesario para `output_config.format`,
+  `messages.parse`, adaptive thinking). Scripts `test:ia` y `test` (corre `lib/**/*.test.ts`).
+- `lib/ia/tipos.ts` — `ClienteModelo` (interfaz inyectada), `UsoModelo`/`RespuestaModelo`,
+  `ErrorIA` (códigos `entrada_invalida` | `salida_invalida` | `modelo_no_disponible` | `modelo_rechazo`).
+- `lib/ia/validar.ts` — Zod de `zTurno` / `zSintesis` / `zMensajeCierre`, contraparte ejecutable
+  de `lib/diagnostico/schemas.ts` (el test los cruza).
+- `lib/ia/normalizar.ts` — `normalizarTranscripcion()` (PSAI B1: NFC, control chars, bidi/zero-width,
+  espaciado, tope 8k) + `sanearSugerencias()` (PSAI B4).
+- `lib/ia/motor-turno.ts` — `ejecutarTurno(entrada, cliente)`: normaliza, arma prompts con
+  `construirSystemPromptTurno/UserMessageTurno`, llama al cliente, sanea, devuelve
+  `{ salida, meta }` (`meta` = tipo/modelo/prompt_version/mapa_indagacion_version/tokens/latencia).
+  NO importa `cliente.ts`.
+- `lib/ia/cliente.ts` — `clienteAnthropic()`: única implementación real. `messages.create` con
+  `output_config.format` = JSON Schema; re-valida con Zod; mapea errores del SDK a `ErrorIA`.
+- `lib/ia/index.ts` (barrel), `lib/ia/README.md`, `lib/ia/motor-turno.test.ts` (9 tests, doble).
+- `lib/diagnostico/schemas.ts`: nota apuntando a `lib/ia/validar.ts`.
+- `logs/BUGS.md`: aviso `postcss`/next 15 (build-only, diferido a Next 16).
+- `BACKLOG.md`, `CHANGELOG.md`: Fase 4 parcial.
+
+**Decisiones de implementación**:
+- Salida estructurada por **JSON Schema crudo** en `output_config.format` (no `zodOutputFormat`):
+  el helper del SDK espera `zod/v4` y `validar.ts` usa la API clásica de zod 3. El JSON Schema
+  ya existía (`schemas.ts`); Zod queda como validación de runtime (defensa en profundidad).
+- `ErrorIA` sin parameter properties (`readonly x` en constructor) → `node --test
+  --experimental-strip-types` no las soporta.
+- El orquestador no conoce el SDK: los tests corren sin cargar `@anthropic-ai/sdk`.
+
+**Commit**: `feat(ia): núcleo BFF lib/ia/ (motor de turno inyectable + Zod + normalización)`
+
+**Próximo paso**: Fase 0 externa (Supabase EC + Vercel + remoto). Con eso: Route Handler
+`/api/turno` (auth + rate limit + persistencia) + smoke test de `cliente.ts` contra la API real.
