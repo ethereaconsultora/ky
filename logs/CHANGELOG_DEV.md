@@ -185,3 +185,41 @@ de los motores de IA, inyectable y testeable con un doble del cliente de Claude.
 
 **Próximo paso**: Fase 0 externa (Supabase EC + Vercel + remoto). Con eso: Route Handler
 `/api/turno` (auth + rate limit + persistencia) + smoke test de `cliente.ts` contra la API real.
+
+---
+
+### [2026-09-09] — Fase 0/2/3/4: repo remoto, migraciones aplicadas, /api/turno
+
+**Prompt**: el usuario aportó infra — proyecto Supabase de EC (compartido con la web de la
+Versión A), repo GitHub vacío, `ANTHROPIC_API_KEY`. "seguimos".
+
+**Resultado**:
+- **Repo**: `git remote add origin https://github.com/ethereaconsultora/ky`; push de `main` + `dev`.
+  `vercel.json` (`framework: nextjs`) para que Vercel no lo trate como sitio estático. `dev` verde
+  en Vercel → merge ff a `main`.
+- **Supabase**: la Versión A usa `contactos_ec` / `diagnosticos` / `visitas_ec` → cero colisión
+  con KY. El usuario corrió `spec/init_schema.sql` (0001–0005); confirmado en vivo: las 13 tablas
+  responden 200 vía REST con el service role.
+- **`.env.local`** (gitignored): URL + anon + service_role de EC + `EC_PGCRYPTO_KEY` (generada) +
+  `ANTHROPIC_API_KEY`.
+- **Fase 3 (parcial)**: `lib/supabase/{env,server,client,service}.ts` — `@supabase/ssr`,
+  `usuarioActual()` con `getUser()`.
+- **Fase 4**: `app/api/turno/route.ts` (auth → diagnóstico por RLS → rate limit → estado de
+  fenómenos desde DB → `ejecutarTurno` → persiste con service role). `lib/ia/persistencia-turno.ts`
+  (`estadoFenomenos` / `upsertsFenomenos`, 4 tests). `lib/ratelimit/` (Upstash o memoria).
+  `supabase/migrations/0006` — RPC `guardar_respuesta_cruda` / `leer_respuestas_crudas` (cifrado
+  pgcrypto server-side, sólo `service_role`).
+- **Smoke test del Motor de Turno contra Claude real**: la plomería anda (arma el prompt con la
+  Mapa de Indagación, `output_config.format`, llama a `claude-haiku-4-5`), pero el workspace de
+  Anthropic **no tiene crédito** (`400 credit balance too low`). Falta cargar saldo para el eval.
+
+**Verificación**: 30/30 tests · `tsc` / `lint` / `build` limpios (`ƒ /api/turno`).
+
+**Commits** (en `dev`; `main` al día hasta `8bf8e9b`): `chore(db) init_schema`, `fix(vercel)`,
+`feat(supabase)`, `feat(api) /api/turno` (`acdce42`).
+
+**Pendiente para cerrar Fase 4**:
+1. Cargar crédito en el workspace de Anthropic (`wrkspc_01BsdrE31NrHgJFpx5tPEiiE`).
+2. Aplicar `supabase/migrations/0006` al proyecto real.
+3. Auth real (decisión #5: login propio EC recomendado) para llamar a `/api/turno` E2E.
+4. Upstash (opcional; si no, queda el limiter en memoria).
