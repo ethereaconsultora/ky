@@ -66,7 +66,9 @@
   + `cliente-openai-compat.ts` (modo JSON + Zod + 1 reintento). Para probar gratis y volver a Claude
   cambiando una variable. Bloqueado en Vercel production salvo `KY_PERMITIR_IA_GRATIS=1` (los tiers
   gratuitos pueden entrenar con los datos → sólo datos ficticios). 16 tests.
-- ⬜ Cargar `KY_IA_API_KEY` (Gemini gratis en aistudio.google.com/apikey) y correr el smoke test.
+- ✅ Smoke test contra Gemini real (`gemini-3.5-flash`): OK, 6 s/turno con `reasoning_effort=low`.
+- ⬜ **Calibrar sobre-confirmación**: en 1 turno confirmó los 4 criterios con confianza `alta`. Decidir con Ari
+  (regla en el prompt de turno vs. tope en el orquestador: no `confirmado` con < N turnos / no `alta` sin recurrencia observada).
 - ⬜ **Antes del lanzamiento**: recorrer el eval con Ari sobre Claude (un modelo gratis sigue peor la Mapa de Indagación).
 - ✅ Migración `0006` aplicada.
 - ⬜ Auth real (login) para poder llamar a `/api/turno` de punta a punta.

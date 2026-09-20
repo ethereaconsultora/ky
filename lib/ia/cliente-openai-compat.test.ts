@@ -47,11 +47,15 @@ function fetchFalso(respuestas: Array<Response | Error>) {
   return { impl, llamadas };
 }
 
+const esperas: number[] = [];
 const cfg = (fetchImpl: typeof fetch) => ({
   baseUrl: "https://api.ejemplo.com/v1/",
   apiKey: "clave-secreta",
   modelo: "modelo-x",
   fetchImpl,
+  esperar: async (ms: number) => {
+    esperas.push(ms);
+  },
 });
 
 test("extraerJSON: JSON pelado, con fences y con texto alrededor", () => {
@@ -134,4 +138,49 @@ test("mensajeCierre valida contra su propio esquema", async () => {
   const { impl } = fetchFalso([respuesta(JSON.stringify({ mensaje_cierre: "Gracias por tu tiempo." }))]);
   const r = await clienteOpenAICompat(cfg(impl)).mensajeCierre("s", "u");
   assert.equal(r.datos.mensaje_cierre, "Gracias por tu tiempo.");
+});
+
+test("503 transitorio: reintenta con espera y se recupera", async () => {
+  esperas.length = 0;
+  const { impl, llamadas } = fetchFalso([
+    new Response("high demand", { status: 503 }),
+    new Response("high demand", { status: 503 }),
+    respuesta(JSON.stringify(TURNO_OK)),
+  ]);
+  const r = await clienteOpenAICompat(cfg(impl)).turno("s", "u");
+  assert.equal(r.datos.accion, "profundizar");
+  assert.equal(llamadas.length, 3);
+  assert.deepEqual(esperas, [1500, 3500]);
+});
+
+test("503 persistente: tras los reintentos falla con modelo_no_disponible", async () => {
+  esperas.length = 0;
+  const { impl, llamadas } = fetchFalso([
+    new Response("x", { status: 503 }),
+    new Response("x", { status: 503 }),
+    new Response("x", { status: 503 }),
+  ]);
+  await assert.rejects(
+    () => clienteOpenAICompat(cfg(impl)).turno("s", "u"),
+    (e: unknown) => e instanceof ErrorIA && e.code === "modelo_no_disponible" && /503/.test(e.message),
+  );
+  assert.equal(llamadas.length, 3);
+});
+
+test("429 NO se reintenta (es cuota, no un pico)", async () => {
+  esperas.length = 0;
+  const { impl, llamadas } = fetchFalso([new Response("quota", { status: 429 })]);
+  await assert.rejects(() => clienteOpenAICompat(cfg(impl)).turno("s", "u"));
+  assert.equal(llamadas.length, 1);
+  assert.deepEqual(esperas, []);
+});
+
+test("reasoning_effort: se envía sólo si está configurado", async () => {
+  const con = fetchFalso([respuesta(JSON.stringify(TURNO_OK))]);
+  await clienteOpenAICompat({ ...cfg(con.impl), razonamiento: "low" }).turno("s", "u");
+  assert.equal((con.llamadas[0].body as Record<string, unknown>).reasoning_effort, "low");
+
+  const sin = fetchFalso([respuesta(JSON.stringify(TURNO_OK))]);
+  await clienteOpenAICompat(cfg(sin.impl)).turno("s", "u");
+  assert.equal("reasoning_effort" in sin.llamadas[0].body, false);
 });

@@ -237,7 +237,7 @@ segunda implementación y un factory; cambiar de proveedor es una variable de en
   Modo JSON (`json_object`) + esquema en el prompt + Zod + **1 reintento** devolviéndole el error de
   validación. Tolera fences ```json. Sin dependencias (`fetch`).
 - `lib/ia/proveedor.ts` — `crearClienteModelo()` por `KY_PROVEEDOR_IA` (default `claude`). Presets de
-  URL/modelo para gemini (`gemini-2.5-flash`) y groq.
+  URL/modelo para gemini (`gemini-3.5-flash`, `reasoning_effort: low`) y groq.
 - `app/api/turno/route.ts` usa el factory. Nuevo código de error `config_ia`.
 - **Guardia de seguridad**: en `VERCEL_ENV=production` un proveedor no-Claude se rechaza salvo
   `KY_PERMITIR_IA_GRATIS=1`. Motivo: el free tier de Gemini usa el contenido para mejorar los productos
@@ -247,4 +247,19 @@ segunda implementación y un factory; cambiar de proveedor es una variable de en
 **Límite conocido**: sin `KY_IA_API_KEY` no se pudo correr contra un modelo gratis real; el adaptador está
 probado con `fetch` inyectado. Un modelo gratis seguirá peor el prompt largo de la Mapa de Indagación y
 el español rioplatense: sirve para probar plomería/UX, **no** para calibrar la Mapa con Ari.
+
+**Smoke test real contra Gemini (`gemini-3.5-flash`, key gratis) — transcripción ficticia tipo Alemany (jefe de turno)**:
+- Plomería OK de punta a punta: JSON válido al primer intento, los 4 `hilo` devueltos existen en la Mapa
+  (`promocion_sin_formacion`, `responsabilidad_sin_autoridad`, `el_sandwich`, `fragmentacion_tiempo`),
+  3 sugerencias que persiguen hilos distintos, en registro cálido.
+- Modelos: `gemini-2.5-flash` → 404 (ya no disponible para cuentas nuevas); `3.6/3.7/3.8-flash` y
+  `flash-latest` → 503 sostenido por saturación; `3.5-flash` y `3.1-flash-lite` responden. Se agregó
+  reintento con espera (1,5 s y 3,5 s) sólo para 500/502/503/504 (no 429).
+- Latencia por turno: **15,4 s** por defecto → **6,0 s** con `reasoning_effort=low`. Todavía lento para
+  entrevista en vivo (Claude Haiku debería andar en 2–4 s; a medir).
+- **Hallazgo de calidad (para la calibración con Ari)**: con UN solo turno de respuesta el modelo marcó las
+  4 condiciones, `estado=confirmado`, `intensidad=severo`, `confianza=alta`. Sobre-confirma: una respuesta
+  monologada, aunque rica, no debería llegar a confianza alta ni a `hipotesis=true` (la hipótesis la valida
+  el entrevistado en un turno propio). Candidato a regla en el prompt del turno / tope en el orquestador.
+  No se tocó el método: decisión de Ari.
 

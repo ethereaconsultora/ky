@@ -8,7 +8,8 @@
  * Diferencia con `cliente.ts`: los modelos gratuitos no garantizan JSON Schema
  * estricto, asi que se usa modo JSON (`response_format: json_object`), el esquema
  * se incluye en el prompt, se re-valida con Zod y se reintenta UNA vez
- * devolviendole al modelo el error de validacion.
+ * devolviendole al modelo el error de validacion. Ademas, los 5xx transitorios
+ * (los tiers gratis dan 503 en picos de demanda) se reintentan con espera.
  *
  * Sin dependencias: usa `fetch`. NO importa el SDK de Anthropic.
  */
@@ -28,9 +29,17 @@ export interface ConfigCompat {
   baseUrl: string;
   apiKey: string;
   modelo: string;
+  /** `reasoning_effort` (low|medium|high|none) para modelos que razonan: baja la latencia. Opcional. */
+  razonamiento?: string;
   /** Inyectable para tests. */
   fetchImpl?: typeof fetch;
+  /** Inyectable para tests (espera entre reintentos por errores 5xx transitorios). */
+  esperar?: (ms: number) => Promise<void>;
 }
+
+/** Esperas antes de reintentar un 5xx transitorio. */
+const ESPERAS_5XX_MS = [1500, 3500];
+const STATUS_TRANSITORIOS = [500, 502, 503, 504];
 
 interface RespuestaChat {
   model?: string;
@@ -65,6 +74,35 @@ function instruccionFormato(schema: unknown): string {
 export function clienteOpenAICompat(cfg: ConfigCompat): ClienteModelo {
   const base = cfg.baseUrl.replace(/\/+$/, "");
   const doFetch = cfg.fetchImpl ?? fetch;
+  const esperar = cfg.esperar ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+
+  /** POST con reintentos SOLO para 500/502/503/504. 429 (cuota) y otros 4xx salen de inmediato. */
+  async function postear(mensajes: Mensaje[], maxTokens: number): Promise<Response> {
+    for (let i = 0; ; i++) {
+      let res: Response;
+      try {
+        res = await doFetch(`${base}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cfg.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: cfg.modelo,
+            messages: mensajes,
+            response_format: { type: "json_object" },
+            temperature: 0.4,
+            max_tokens: maxTokens,
+            ...(cfg.razonamiento ? { reasoning_effort: cfg.razonamiento } : {}),
+          }),
+        });
+      } catch (e) {
+        throw new ErrorIA("modelo_no_disponible", "No se pudo conectar con el proveedor de IA.", e);
+      }
+      if (!STATUS_TRANSITORIOS.includes(res.status) || i >= ESPERAS_5XX_MS.length) return res;
+      await esperar(ESPERAS_5XX_MS[i]);
+    }
+  }
 
   async function llamar<T>(
     system: string,
@@ -85,25 +123,7 @@ export function clienteOpenAICompat(cfg: ConfigCompat): ClienteModelo {
     let ultimoError = "";
 
     for (let intento = 0; intento < 2; intento++) {
-      let res: Response;
-      try {
-        res = await doFetch(`${base}/chat/completions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${cfg.apiKey}`,
-          },
-          body: JSON.stringify({
-            model: cfg.modelo,
-            messages: mensajes,
-            response_format: { type: "json_object" },
-            temperature: 0.4,
-            max_tokens: maxTokens,
-          }),
-        });
-      } catch (e) {
-        throw new ErrorIA("modelo_no_disponible", "No se pudo conectar con el proveedor de IA.", e);
-      }
+      const res = await postear(mensajes, maxTokens);
 
       if (!res.ok) {
         const detalle = (await res.text().catch(() => "")).slice(0, 300);

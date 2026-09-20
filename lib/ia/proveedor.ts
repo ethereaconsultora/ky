@@ -18,10 +18,19 @@ import type { ClienteModelo } from "./tipos.ts";
 
 export type ProveedorIA = "claude" | "gemini" | "groq" | "openrouter" | "custom";
 
-const PRESETS: Record<Exclude<ProveedorIA, "claude" | "custom">, { baseUrl: string; modelo: string }> = {
+interface Preset {
+  baseUrl: string;
+  modelo: string;
+  /** reasoning_effort por defecto (sólo para modelos que razonan; Llama etc. lo rechazarían). */
+  razonamiento?: string;
+}
+
+const PRESETS: Record<Exclude<ProveedorIA, "claude" | "custom">, Preset> = {
   gemini: {
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    modelo: "gemini-2.5-flash",
+    // 3.5-flash: los 3.6/3.7/3.8 y flash-latest daban 503 por saturación en las pruebas (2026-09-20).
+    modelo: "gemini-3.5-flash",
+    razonamiento: "low",
   },
   groq: { baseUrl: "https://api.groq.com/openai/v1", modelo: "llama-3.3-70b-versatile" },
   openrouter: { baseUrl: "https://openrouter.ai/api/v1", modelo: "" },
@@ -47,7 +56,7 @@ export function crearClienteModelo(env: Env = process.env): ClienteModelo {
     );
   }
 
-  const preset = proveedor === "custom" ? { baseUrl: "", modelo: "" } : PRESETS[proveedor];
+  const preset: Preset = proveedor === "custom" ? { baseUrl: "", modelo: "" } : PRESETS[proveedor];
   const baseUrl = env.KY_IA_BASE_URL?.trim() || preset.baseUrl;
   const modelo = env.KY_IA_MODELO?.trim() || preset.modelo;
   const apiKey = env.KY_IA_API_KEY?.trim();
@@ -56,5 +65,7 @@ export function crearClienteModelo(env: Env = process.env): ClienteModelo {
   if (!baseUrl) throw new ErrorIA("config_ia", "Falta KY_IA_BASE_URL para el proveedor de IA.");
   if (!modelo) throw new ErrorIA("config_ia", "Falta KY_IA_MODELO para el proveedor de IA.");
 
-  return clienteOpenAICompat({ baseUrl, apiKey, modelo });
+  const razonamiento = env.KY_IA_REASONING_EFFORT?.trim() || preset.razonamiento;
+
+  return clienteOpenAICompat({ baseUrl, apiKey, modelo, razonamiento });
 }
