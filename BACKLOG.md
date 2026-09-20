@@ -141,8 +141,15 @@
   tabla de vínculo + 3 funciones `security definer` sólo `service_role`; API `/api/empresa/diagnostico-ec` (GET / POST / DELETE,
   con `audit_logs`); pestaña «Diagnóstico EC» sólo para la org `espacio-critico`. `tsc` limpio; SQL validado con el parser de Postgres.
 - ✅ `spec/DEPLOYMENT.md` corregido: la extensión es `postgres_fdw` (no `wrappers`), y se usa el **pooler en modo sesión**.
-- ⬜ **Configurar y verificar de punta a punta** (requiere tus credenciales): aplicar `0009` en EC, crear `newen_reader`,
-  copiar host/usuario del Session pooler, ejecutar el SQL de Newen con los 3 placeholders, correr las queries de verificación.
+- ✅ **Conexión configurada y verificada de punta a punta (2026-09-20, `scratch/e2e-newen.mjs`, 28 chequeos)**: `0009` + rol
+  `newen_reader` en EC, SQL v0.53.0 en Newen. Newen ve A (aprobado) y D (sin evidencia); NO ve B (borrador) ni C (en curso);
+  al aprobar B pasa a verse y al volver a borrador deja de verse. Detalle por cliente con pérdida y reducción/ROI como RANGO,
+  reversibilidad como rango, fenómeno dominante correcto (crítico > severo, bug de orden corregido). La evidencia por hilo y los
+  campos de respuesta NO llegan a Newen. `anon` no ejecuta las funciones (42501) ni lee el vínculo; `ec_foraneo` no está expuesto
+  ni con service_role. No se puede vincular dos veces el mismo diagnóstico. Todo lo de prueba se borró de EC.
+- ⬜ Falta comprobar a mano (no lo puedo hacer yo, requiere la contraseña del rol): las 4 queries de verificación de
+  `supabase/roles/newen_reader.sql` (que `newen_reader` NO lea `public.respuesta_cruda` y sea de sólo lectura).
+- ⬜ Falta probar la API route y la pestaña con una sesión real de Newen (`feature/diagnostico-ec` en local o en un Preview).
 - ⬜ Probar la pestaña en un Preview de Newen y recién ahí mergear a `master` (con confirmación de Ari).
 - Decisión: el vínculo cliente ↔ diagnóstico lo guarda **Newen** (`organization_client_ec`), no EC (la FDW es de sólo lectura).
   `empresa.organization_client_id` de EC queda sin uso.

@@ -374,3 +374,18 @@ AssemblyAI / Azure, todos de pago por uso: se posterga; la app sigue en modo tex
 
 **Pendiente (te toca)**: aplicar `0009` y crear `newen_reader` en EC; copiar host / usuario del Session pooler; ejecutar el SQL de
 Newen con los 3 placeholders; verificar; probar en un Preview de Newen.
+
+---
+
+### [2026-09-20] — Fase 9: conexión EC → Newen configurada y verificada
+
+**Prompt**: "listo, probá cómo quedó todo" (el usuario aplicó `0009`, creó el rol `newen_reader` y ejecutó el SQL v0.53.0 en Newen).
+
+**Resultado**: ✅ 28 chequeos en verde (`scratch/e2e-newen.mjs`, gitignored): la FDW conecta; Newen ve sólo lo aprobado (o sin evidencia);
+la aprobación se refleja en vivo; los datos llegan con rangos; la evidencia NO llega; `anon` no accede; `ec_foraneo` no está expuesto.
+El bug de orden por intensidad (crítico vs severo) quedó comprobado como corregido. Se usaron las credenciales locales de Newen
+sólo para llamar a las funciones y crear/borrar UN vínculo temporal; los datos de prueba de EC se borraron.
+
+**Sin probar todavía**: la API route y la pestaña con una sesión real de Newen; y las 4 queries de verificación del rol
+(`newen_reader` no lee `public.respuesta_cruda`), que requieren su contraseña.
+
