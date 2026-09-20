@@ -19,13 +19,20 @@ grant usage on schema ec_publico to newen_reader;
 grant select on all tables in schema ec_publico to newen_reader;
 alter default privileges in schema ec_publico grant select on tables to newen_reader;
 
--- 3. Verificación (correr en el SQL Editor de EC, una por una):
---   set role newen_reader;
---   select count(*) from ec_publico.v_diagnostico;        -- OK
---   select * from public.respuesta_cruda limit 1;         -- ERROR: permission denied
---   select * from public.fenomeno_detectado limit 1;      -- ERROR: permission denied
---   insert into ec_publico.v_diagnostico default values;  -- ERROR: read-only
---   reset role;
+-- 3. Verificación (correr en el SQL Editor de EC; se lee en la columna `resultado`):
+--   select 'puede leer las vistas públicas (debe ser true)' as prueba,
+--          has_table_privilege('newen_reader','ec_publico.v_diagnostico','select')::text as resultado
+--   union all select 'puede leer las respuestas de la entrevista (debe ser false)',
+--          has_table_privilege('newen_reader','public.respuesta_cruda','select')::text
+--   union all select 'puede leer los fenómenos detectados (debe ser false)',
+--          has_table_privilege('newen_reader','public.fenomeno_detectado','select')::text
+--   union all select 'puede leer la tabla de diagnósticos (debe ser false)',
+--          has_table_privilege('newen_reader','public.diagnostico','select')::text
+--   union all select 'puede escribir en las vistas (debe ser false)',
+--          has_table_privilege('newen_reader','ec_publico.v_diagnostico','insert')::text
+--   union all select 'configuración del rol',
+--          (select array_to_string(rolconfig, ' | ') from pg_roles where rolname = 'newen_reader');
+--   (No se usa `set role`: en Supabase el usuario del editor puede no tener permiso de asumir el rol.)
 
 -- Revocar (si hay que rotar la credencial):
 --   drop owned by newen_reader;
