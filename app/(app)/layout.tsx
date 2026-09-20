@@ -12,6 +12,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
       <header
+        className="no-print"
         style={{
           display: "flex",
           alignItems: "center",

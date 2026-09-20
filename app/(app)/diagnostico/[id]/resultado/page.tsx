@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
+import { estadoEntrega } from "@/lib/api/entrega";
 import {
   ETIQUETA_HORIZONTE,
   ETIQUETA_INDICADOR,
@@ -14,6 +15,7 @@ import {
 import { FENOMENOS_DEF, GUARDARRAILES } from "@/lib/diagnostico/matriz.config";
 import type { FenomenoTipo } from "@/lib/diagnostico/types";
 import { crearClienteServidor } from "@/lib/supabase/server";
+import { Intervenciones, type IntervencionVM } from "./intervenciones";
 
 export const metadata = { title: "Resultado — KY" };
 
@@ -246,35 +248,24 @@ export default async function ResultadoPage({ params }: { params: Promise<{ id: 
             </p>
           </div>
 
-          {/* ── intervención propuesta ── */}
-          <div className="ky-card" style={{ marginTop: 16 }}>
-            <span className="ky-label">
-              Intervención propuesta · {ints && ints.length > 1 ? `${ints.length} frentes` : caso !== null && caso >= 3 ? "punto de accesibilidad" : "1 frente"}
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {(ints ?? []).map((i) => {
-                const rev = i.reversibilidad_id ? revPorId.get(i.reversibilidad_id) : undefined;
-                return (
-                  <div key={i.id} style={{ borderTop: "1px solid var(--border)", paddingTop: 14 }}>
-                    <div className="ky-muted">{(i.fenomenos_objetivo as string[]).map(nombre).join(" + ")}</div>
-                    <p style={{ fontSize: 16, lineHeight: 1.55, margin: "4px 0 8px" }}>{i.descripcion}</p>
-                    <p style={{ fontSize: 14, lineHeight: 1.55 }}>
-                      <strong style={{ fontWeight: 500 }}>Qué cambia para las personas:</strong> {i.traduccion_humana}
-                    </p>
-                    {rev && (
-                      <p className="ky-muted" style={{ marginTop: 8 }}>
-                        Reversibilidad estimada: {fmtRangoPorcentaje(Number(rev.grado_temprano), Number(rev.grado_tardio))} (a 6 y a 24 meses) ·{" "}
-                        {ETIQUETA_PLAZO[rev.plazo_aparicion_efecto] ?? rev.plazo_aparicion_efecto}. {rev.justificacion}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <p className="ky-muted" style={{ marginTop: 14 }}>
-              Estado: borrador — pendiente de la revisión y aprobación del Counselor.
-            </p>
-          </div>
+          {/* ── intervención propuesta (editar / aprobar / entregar) ── */}
+          <Intervenciones
+            key={estadoEntrega(ints ?? [])}
+            diagnosticoId={id}
+            estado={estadoEntrega(ints ?? [])}
+            items={(ints ?? []).map((it): IntervencionVM => {
+              const rev = it.reversibilidad_id ? revPorId.get(it.reversibilidad_id) : undefined;
+              return {
+                id: it.id,
+                objetivo: (it.fenomenos_objetivo as string[]).map(nombre).join(" + "),
+                descripcion: it.descripcion,
+                traduccion_humana: it.traduccion_humana,
+                reversibilidad: rev
+                  ? `Reversibilidad estimada: ${fmtRangoPorcentaje(Number(rev.grado_temprano), Number(rev.grado_tardio))} (a 6 y a 24 meses) · ${ETIQUETA_PLAZO[rev.plazo_aparicion_efecto] ?? rev.plazo_aparicion_efecto}. ${rev.justificacion}`
+                  : null,
+              };
+            })}
+          />
         </>
       )}
     </main>

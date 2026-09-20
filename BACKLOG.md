@@ -111,15 +111,26 @@
   sólo sobre fenómenos confirmados, máx. 2 frentes, reversibilidad recortada a 0,20–0,55 y ordenada, respaldo de la matriz
   si el modelo no aporta una intervención válida, reducción y ROI siempre como rango. Nada nace aprobado.
 - ✅ `resultado_tipo` con `DOMINANTE_DEBIL`, motor económico ejecutado al cierre, factor de fricción derivado persistido.
-- 🟡 Migración `0008` (`diagnostico.mensaje_cierre`) — escrita, **falta aplicarla** en el proyecto real.
-- 🟡 E2E del cierre (`scratch/e2e-cierre.mjs`): DD-11 verificado en vivo; el cierre completo espera la `0008`.
+- ✅ Migración `0008` aplicada.
+- ✅ E2E del cierre verificado en vivo (2026-09-20, `scratch/e2e-cierre.mjs`, 30 chequeos): 409 sin evidencia, cierre forzado sin cifras,
+  cierre completo con 10 turnos sembrados (presentismo = fórmula de la matriz, rangos, reversibilidad 0,20–0,55, nada aprobado,
+  auditoría, Resultado con 3 capas), doble cierre → 409 sin duplicados, RLS.
+- ⬜ ROI muy alto (397–794 % en el E2E): depende de la decisión abierta #7 (costo de intervención puntual vs anual) — revisar con Ari.
 - ⬜ Las 4 visualizaciones de caso del Mapa EC son hoy un diagrama simple (nodos + símbolo); falta el grafo definitivo.
 
 ## Fase 8 — Resultado + Intervención
 
-- ✅ Pantalla Resultado (`/diagnostico/[id]/resultado`): 3 capas (sabemos / estimamos / proyectamos con borde punteado y «sin validar»), relación entre fenómenos, mensaje de cierre, modo honesto SIN_EVIDENCIA sin cifras.
-- 🟡 Intervención: se muestra dentro de Resultado (reversibilidad como rango, horizonte). Falta pantalla propia.
-- ⬜ Editar / aprobar / enviar + artefacto PDF.
+- ✅ Pantalla Resultado (`/diagnostico/[id]/resultado`): 3 capas (sabemos / estimamos / proyectamos con borde punteado y «sin validar»).
+- ✅ Editar / aprobar / entregar: `PATCH /api/intervencion/[id]` (sólo en borrador), `POST /api/diagnostico/[id]/aprobar`,
+  `POST /api/diagnostico/[id]/enviar`. Estados borrador → aprobada → enviada (`lib/api/entrega.ts`); nada se aprueba ni se
+  entrega solo; una propuesta aprobada queda fija.
+- ✅ Informe para la empresa (`/diagnostico/[id]/informe`): papel claro, imprimible / PDF desde el navegador. NO incluye la
+  evidencia cruda ni jerga interna (verificado en el E2E); muestra BORRADOR si no está aprobada.
+- ✅ E2E (`scratch/e2e-cierre.mjs`, 47 chequeos): edición, aprobación, doble aprobación/entrega → 409, edición tras aprobar → 409,
+  informe sin evidencia cruda, `enviada_at` + `artefacto_url`.
+- ⬜ KY **no manda** el mail a la empresa: deja registro y el informe; el Counselor lo entrega por su canal. Envío automático = decisión aparte.
+- ⬜ PDF generado en servidor (hoy: imprimir → «Guardar como PDF» del navegador).
+- ⬜ Pantalla propia de Intervención (hoy vive dentro de Resultado).
 
 ## Fase 9 — Integración Newen
 

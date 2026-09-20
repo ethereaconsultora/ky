@@ -38,8 +38,9 @@ rate limit (Upstash). Detalle de esquemas en `openapi.yaml`.
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
-| POST | `/api/intervencion/[id]/aprobar` | counselor dueño | `aprobada_por_consultor = true`, `aprobada_at = now()` |
-| POST | `/api/intervencion/[id]/enviar` | counselor dueño | Genera el artefacto (PDF), setea `enviada_at` + `artefacto_url` |
+| PATCH | `/api/intervencion/[id]` | counselor dueño | Edita `descripcion` / `traduccion_humana` (10–2000 car.). Sólo en borrador; aprobada ⇒ 409 |
+| POST | `/api/diagnostico/[id]/aprobar` | counselor dueño | Aprueba TODA la propuesta (`aprobada_por_consultor = true`, `aprobada_at`). Sólo cerrado y en borrador; si no ⇒ 409 |
+| POST | `/api/diagnostico/[id]/enviar` | counselor dueño | Marca la propuesta como entregada: `enviada_at` + `artefacto_url` = `/diagnostico/[id]/informe` (imprimible/PDF). Requiere aprobada; KY no envía el mail |
 
 ## Reglas transversales
 

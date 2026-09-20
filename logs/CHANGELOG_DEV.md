@@ -334,3 +334,24 @@ pruebas repetidas conviene otro proveedor/plan; para calibrar con Ari, Claude.
 **Pendiente**: aplicar `0008` y correr `scratch/e2e-cierre.mjs` (cierre forzado, cierre completo con 10 turnos sembrados,
 Resultado, idempotencia, RLS). Aprobar/Enviar + PDF (Fase 8), STT (Fase 6), integración Newen (Fase 9).
 
+---
+
+### [2026-09-20] — Fase 8: editar / aprobar / entregar + informe imprimible; E2E del cierre verificado
+
+**Prompt**: "listo, sigamos" (0008 aplicada).
+
+**Resultado**: ✅
+- E2E del cierre completo verificado en vivo con la base real y Gemini (cierre forzado sin cifras, cierre completo con 10 turnos
+  sembrados, Resultado con 3 capas, doble cierre → 409 sin duplicados, RLS). Presentismo = fórmula de la matriz; reducción y ROI en rango;
+  reversibilidad recortada a 0,20–0,55.
+- `lib/api/entrega.ts` (estados borrador/aprobada/enviada + validación de edición, 4 tests), endpoints `PATCH /api/intervencion/[id]`,
+  `POST /api/diagnostico/[id]/{aprobar,enviar}`, componente `Intervenciones` (editar / aprobar / marcar entregada) en Resultado.
+- Informe `/diagnostico/[id]/informe` (papel claro + CSS de impresión; «BORRADOR» si no está aprobado). Sin evidencia cruda ni jerga.
+- E2E ampliado a 47 chequeos: edición 401/400/200, entregar sin aprobar 409, aprobar, aprobar de nuevo 409, editar aprobada 409,
+  informe sin evidencia cruda, entregar y entregar de nuevo 409.
+- Tests: 110/110 · tsc / lint / build limpios.
+
+**Decisión**: los endpoints de aprobar/enviar son **por diagnóstico** (no por intervención como decía el contrato): con 2 frentes se
+aprueba y entrega la propuesta completa. `API_CONTRACTS.md` actualizado. KY no envía el mail a la empresa (queda registro + informe).
+
+**Nota**: los scripts de prueba escriben cuentas `@example.com` temporales en Auth y las borran al terminar.
