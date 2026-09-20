@@ -43,7 +43,10 @@
   `middleware.ts` (refresh + guard de rutas), `app/login/`, `app/auth/signout`, layout `(app)/`
   con revalidación server-side.
 - ✅ Trigger `on auth.users` → alta en `public.users` (`supabase/migrations/0007`, con backfill).
-- ⬜ Aplicar `0007` al proyecto real + dar de alta a los counselors en Supabase Auth.
+- ✅ Migraciones `0001–0007` aplicadas y verificadas en el proyecto real (16 tablas en `public`, esquema
+  `ec_publico` con 3 vistas, 5 funciones, trigger `on_auth_user_created`) — 2026-09-20.
+- ⬜ Dar de alta a los counselors en Supabase → Authentication → Users (hoy hay 0) y correr `supabase/seed.sql`
+  (consentimiento placeholder; `consentimiento_textos` está vacía).
 - ⬜ Componentes base del `DESIGN_SYSTEM.md` (hoy estilos inline con tokens).
 - ⬜ `POST /api/diagnostico` + Pantalla Inicio: datos de empresa + consentimiento de audio versionado.
 - ⬜ `InactivityTimer` (timeout de sesión).
