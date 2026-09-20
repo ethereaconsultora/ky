@@ -47,30 +47,35 @@ NEXT_PUBLIC_APP_URL
 9. POST-DEPLOY CHECK (abajo).
 10. Configurar el keep-alive n8n al Supabase de EC.
 
-## Integración FDW en el proyecto Newen (después de la Fase 8)
+## Integración con Newen (Fase 9) — postgres_fdw, sólo lectura
 
-En el **proyecto Supabase de Newen** (SQL Editor):
+> Corrige una versión anterior de este documento que nombraba `wrappers` / `postgres_wrapper`:
+> la extensión correcta es **`postgres_fdw`** (estándar de Postgres, disponible en Supabase).
+> El SQL completo y comentado vive en el repo de Newen: `spec/init_v0.53.0_diagnostico_ec.sql`.
 
-```sql
-create extension if not exists wrappers with schema extensions;
+**Orden (todo a mano, una sola vez):**
 
--- servidor foráneo hacia EC
-create server if not exists ec_server
-  foreign data wrapper postgres_wrapper
-  options (
-    host 'db.<proyecto-ec>.supabase.co', port '5432', dbname 'postgres',
-    user 'newen_reader', password '***'   -- guardar como Vault secret, no inline
-  );
+1. **Proyecto EC** — aplicar `supabase/migrations/0009_vistas_solo_aprobadas.sql`. Las vistas `ec_publico.v_*`
+   sólo muestran diagnósticos **cerrados y con la propuesta aprobada** (o cerrados sin evidencia). Un borrador
+   nunca sale de EC.
+2. **Proyecto EC** — crear el rol `newen_reader` con `supabase/roles/newen_reader.sql` (contraseña larga y
+   aleatoria; conexión máx. 5, sólo lectura, `statement_timeout` 10 s, sin acceso a `public`).
+3. **Proyecto EC** — Dashboard → Connect → **Session pooler**: anotar host `aws-0-<region>.pooler.supabase.com`,
+   puerto `5432` y el usuario con sufijo: `newen_reader.<ref-del-proyecto-EC>`.
+   (La conexión directa `db.<ref>.supabase.co` es IPv6 y puede no ser alcanzable desde el otro proyecto.)
+4. **Proyecto Newen** — SQL Editor: ejecutar `spec/init_v0.53.0_diagnostico_ec.sql` **reemplazando** los 3
+   placeholders (`__EC_HOST__`, `__EC_DB_USER__`, `__EC_DB_PASSWORD__`) y borrar la query guardada después.
+5. Verificar (queries al final de ese SQL) y desplegar la rama de Newen `feature/diagnostico-ec`.
 
-import foreign schema ec_publico
-  from server ec_server into ec_publico;   -- crea las tablas foráneas ec_publico.v_*
-```
+**Modelo de seguridad (importante):**
 
-Luego `app/(empresa)/empresa/page.tsx` de Newen gana una sección "Diagnóstico EC" que consulta
-`ec_publico.v_diagnostico` / `v_perdida_economica` / `v_intervencion_propuesta` por
-`organization_client_id`. **Cuidado**: el FDW consulta con los permisos de `newen_reader`, no
-respeta la RLS de EC — por eso el control es rol + vista, y las vistas ya excluyen la evidencia
-cruda.
+- Las tablas foráneas **no soportan RLS**. Por eso viven en un esquema privado (`ec_foraneo`) sin grants para
+  `anon` / `authenticated`, y sólo se leen desde 3 funciones `security definer` ejecutables únicamente por
+  `service_role`. Las llama una API route de Newen **después** de verificar sesión, organización (`espacio-critico`)
+  y pertenencia del cliente.
+- El vínculo cliente ↔ diagnóstico lo guarda **Newen** (`organization_client_ec`), porque la FDW es de sólo lectura.
+  `empresa.organization_client_id` de EC queda sin uso.
+- Newen jamás ve `respuesta_cruda`, transcripciones ni la evidencia por hilo.
 
 ## POST-DEPLOY CHECK (Protocolo Maestro Bloque 8)
 
@@ -79,8 +84,8 @@ cruda.
 2. vercel project inspect ky                          → Framework Preset: Next.js
 3. vercel logs <url>                                  → sin errores 500
 4. bundle de producción no contiene ANTHROPIC_API_KEY ni STT_API_KEY
-5. desde el proyecto Newen: SELECT sobre ec_publico.v_diagnostico → OK
-6. desde newen_reader: SELECT sobre public.respuesta_cruda → error de permisos
+5. desde el proyecto Newen: select public.ec_diagnosticos_disponibles() → OK
+6. desde newen_reader (set role en el SQL Editor de EC): SELECT sobre public.respuesta_cruda → permission denied
 Sólo si todo pasa → avisar a Ari.
 ```
 

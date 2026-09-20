@@ -115,3 +115,18 @@ al aprobar el plan.
 - **Impacto**: `MATRIZ_VERSION` v0.2.0; `PRESUPUESTO.blando_min` pasa de 8 a 10 (los MD decían 8–15);
   `/api/turno` devuelve `progreso` y `avisos`; el endpoint de cierre DEBE usar `evaluarCierre()`.
 
+## DD-12 — Integración con Newen: filtrar en origen, vincular en destino
+
+- **Contexto**: Newen (B2C, producción) debe mostrar el resultado del diagnóstico por cliente sin exponer nunca lo que dijo la
+  persona entrevistada, y sin poder ver borradores que el Counselor todavía no aprobó.
+- **Elección**:
+  - EC decide qué sale: las vistas `ec_publico.v_*` sólo devuelven diagnósticos cerrados con la propuesta **aprobada** (o
+    cerrados sin evidencia). Sin `respuesta_cruda`, sin transcripciones, sin evidencia por hilo.
+  - Conexión `postgres_fdw` con un rol de sólo lectura (`newen_reader`), por el **pooler en modo sesión**.
+  - El vínculo cliente ↔ diagnóstico se guarda en **Newen** (`organization_client_ec`): la FDW es de sólo lectura.
+  - En Newen las tablas foráneas viven en un esquema **privado** y sólo se leen por funciones `security definer` para
+    `service_role`, porque las tablas foráneas **no soportan RLS**.
+- **Alternativa considerada**: endpoint HTTP de KY consumido por Newen (más simple de operar: sin red de base de datos ni rol
+  compartido). Se mantiene la FDW por la decisión inicial del plan; si la conexión entre proyectos resulta frágil, el cambio
+  es acotado (las funciones de Newen devolverían lo que hoy leen de las tablas foráneas).
+- **Impacto**: `0009`; el diagnóstico aparece en Newen recién cuando el Counselor aprueba la propuesta.

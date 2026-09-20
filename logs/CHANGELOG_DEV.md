@@ -355,3 +355,22 @@ Resultado, idempotencia, RLS). Aprobar/Enviar + PDF (Fase 8), STT (Fase 6), inte
 aprueba y entrega la propuesta completa. `API_CONTRACTS.md` actualizado. KY no envía el mail a la empresa (queda registro + informe).
 
 **Nota**: los scripts de prueba escriben cuentas `@example.com` temporales en Auth y las borran al terminar.
+
+---
+
+### [2026-09-20] — Fase 9: integración con Newen (código listo, sin desplegar)
+
+**Prompt**: "el proveedor cuál era? si es pago no voy a hacerlo ahora. De ser así saltamos a la fase 9". (STT = Deepgram /
+AssemblyAI / Azure, todos de pago por uso: se posterga; la app sigue en modo texto.)
+
+**Resultado**: ✅ código y documentación; 🟡 falta configurar la conexión y verificar de punta a punta (requiere credenciales).
+- **EC**: `0009_vistas_solo_aprobadas.sql` (vistas del FDW: sólo lo aprobado; fix del orden por intensidad; columnas nuevas al
+  final), `roles/newen_reader.sql` endurecido, `spec/DEPLOYMENT.md` corregido (`postgres_fdw`, pooler en modo sesión).
+- **Newen** (repo `../newen`, rama `feature/diagnostico-ec`, commit `dda6210`, sin push): SQL v0.53.0, API `/api/empresa/diagnostico-ec`,
+  pestaña «Diagnóstico EC» (sólo org `espacio-critico`), `audit_logs`, docs y bitácora de Newen según su WORKFLOW.
+- **Verificación**: los 12 archivos `.sql` (KY + Newen) validados con el parser real de Postgres (libpg-query); `tsc` limpio en
+  Newen; helpers puros de Newen (8 chequeos). No se tocó la base de Newen ni `master`.
+- Decisión **DD-12** (filtrar en origen, vincular en destino). Corrección de un error propio: el documento decía `wrappers`.
+
+**Pendiente (te toca)**: aplicar `0009` y crear `newen_reader` en EC; copiar host / usuario del Session pooler; ejecutar el SQL de
+Newen con los 3 placeholders; verificar; probar en un Preview de Newen.

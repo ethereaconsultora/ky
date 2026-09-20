@@ -134,8 +134,18 @@
 
 ## Fase 9 — Integración Newen
 
-- ⬜ FDW `Wrappers` en el proyecto Newen → `ec_publico.*`.
-- ⬜ Sección "Diagnóstico EC" en `app/(empresa)` de Newen (match por `organization_client_id`).
+- ✅ EC: migración `0009` — las vistas `ec_publico.v_*` sólo muestran diagnósticos **cerrados y con la propuesta aprobada**
+  (o cerrados sin evidencia). Un borrador nunca sale de EC. Corrige un bug: `v_diagnostico` ordenaba la intensidad como
+  texto (un fenómeno «crítico» quedaba último). Rol `newen_reader` endurecido (máx. 5 conexiones, sólo lectura, timeout 10 s).
+- ✅ Newen (rama `feature/diagnostico-ec`, commit `dda6210`, **sin push ni deploy**): SQL `postgres_fdw` + esquema privado +
+  tabla de vínculo + 3 funciones `security definer` sólo `service_role`; API `/api/empresa/diagnostico-ec` (GET / POST / DELETE,
+  con `audit_logs`); pestaña «Diagnóstico EC» sólo para la org `espacio-critico`. `tsc` limpio; SQL validado con el parser de Postgres.
+- ✅ `spec/DEPLOYMENT.md` corregido: la extensión es `postgres_fdw` (no `wrappers`), y se usa el **pooler en modo sesión**.
+- ⬜ **Configurar y verificar de punta a punta** (requiere tus credenciales): aplicar `0009` en EC, crear `newen_reader`,
+  copiar host/usuario del Session pooler, ejecutar el SQL de Newen con los 3 placeholders, correr las queries de verificación.
+- ⬜ Probar la pestaña en un Preview de Newen y recién ahí mergear a `master` (con confirmación de Ari).
+- Decisión: el vínculo cliente ↔ diagnóstico lo guarda **Newen** (`organization_client_ec`), no EC (la FDW es de sólo lectura).
+  `empresa.organization_client_id` de EC queda sin uso.
 
 ## Fase 10 — Hardening
 

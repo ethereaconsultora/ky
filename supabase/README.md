@@ -25,6 +25,7 @@ la fuente canónica es `migrations/`.
 | 0006 | RPC `guardar_respuesta_cruda` / `leer_respuestas_crudas` (cifrado pgcrypto server-side). |
 | 0007 | Trigger de alta en `public.users` al crear un usuario de Auth (+ backfill). |
 | 0008 | `diagnostico.mensaje_cierre`. |
+| 0009 | Vistas `ec_publico` (lo que ve Newen): sólo diagnósticos con la propuesta aprobada + fix del orden por intensidad. |
 
 ## Aplicar (Fase 0 — requiere el proyecto ya creado)
 
