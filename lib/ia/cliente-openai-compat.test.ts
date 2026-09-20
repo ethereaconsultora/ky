@@ -184,3 +184,13 @@ test("reasoning_effort: se envía sólo si está configurado", async () => {
   await clienteOpenAICompat(cfg(sin.impl)).turno("s", "u");
   assert.equal("reasoning_effort" in sin.llamadas[0].body, false);
 });
+
+test("429 por tope DIARIO → mensaje específico (esperar no lo arregla)", async () => {
+  const cuerpo = JSON.stringify({ error: { details: [{ violations: [{ quotaId: "GenerateRequestsPerDayPerProjectPerModel-FreeTier" }] }] } });
+  const { impl, llamadas } = fetchFalso([new Response(cuerpo, { status: 429 })]);
+  await assert.rejects(
+    () => clienteOpenAICompat(cfg(impl)).turno("s", "u"),
+    (e: unknown) => e instanceof ErrorIA && /DIARIO/.test(e.message) && /KY_IA_MODELO/.test(e.message),
+  );
+  assert.equal(llamadas.length, 1);
+});

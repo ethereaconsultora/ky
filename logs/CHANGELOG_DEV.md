@@ -288,3 +288,26 @@ Docs: DD-11, AC-D6..D9, `API_CONTRACTS.md`, BACKLOG.
 
 **Pendiente**: `/api/diagnostico/[id]/cerrar` debe usar `evaluarCierre()` (AC-D9); Ari valida los números.
 
+---
+
+### [2026-09-20] — Alta de diagnóstico, pantallas Inicio/Conversación y E2E real
+
+**Prompt**: "dale" — `POST /api/diagnostico` + pantalla de Inicio.
+
+**Resultado**: ✅
+- `POST /api/diagnostico` (`lib/api/alta-diagnostico.ts` Zod + filas; rollback si falla a mitad; `counselor_id` sale
+  de la sesión, nunca del body; audio exige consentimiento vigente).
+- Pantallas: `/` (lista), `/diagnostico/nuevo`, `/diagnostico/[id]` (conversación en modo texto). `lib/api/numero.ts`
+  parsea números a la argentina. Estilos base en `globals.css`.
+- **E2E real** (`scratch/e2e.mjs`, base real + servidor local + Gemini): 11 turnos ficticios. Verificado sesión, alta,
+  cifrado en reposo, RLS (anónimo no lee diagnóstico/respuestas ni llama al RPC), DD-11 y persistencia. Limpia todo.
+- **Bug encontrado por el E2E y corregido**: cada turno PISABA `mecanismos` con lo que devolvía el modelo (a menudo `[]`)
+  → se perdía la evidencia acumulada. Ahora `fusionarMecanismos()` une lo previo con lo nuevo (+2 tests).
+- Mensajes de validación con ruta (`datos_economicos.r_rotacion_anual: …`); 429 diario → mensaje específico.
+
+**Hallazgo — cuotas del plan gratis de Gemini**: tope DIARIO por modelo (`gemini-3.5-flash`: **20 requests/día**
+≈ 1 entrevista de 11 turnos; cada modelo tiene su bucket). Default pasa a `gemini-3.5-flash-lite` (~2 s). Para
+pruebas repetidas conviene otro proveedor/plan; para calibrar con Ari, Claude.
+
+**Verificación**: 85/85 tests · tsc / lint / build limpios.
+

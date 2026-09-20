@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { FENOMENOS } from "../diagnostico/types.ts";
 import {
   estadoFenomenos,
+  fusionarMecanismos,
   upsertsFenomenos,
   type FilaFenomeno,
 } from "./persistencia-turno.ts";
@@ -108,4 +109,65 @@ test("upsertsFenomenos: mapea la salida del modelo a filas de la DB", () => {
     razonamiento: "mando nuevo desbordado",
     updated_at: "2026-09-09T00:00:00.000Z",
   });
+});
+
+test("fusionarMecanismos: conserva lo acumulado, suma lo nuevo y gana la evidencia más reciente", () => {
+  const previos = [
+    { hilo: "el_sandwich", evidencia: "vieja" },
+    { hilo: "promocion_sin_formacion", evidencia: "p" },
+  ];
+  const nuevos = [
+    { hilo: "el_sandwich", evidencia: "nueva" },
+    { hilo: "soledad_del_rol", evidencia: "s" },
+  ];
+  assert.deepEqual(fusionarMecanismos(previos, nuevos), [
+    { hilo: "el_sandwich", evidencia: "nueva" },
+    { hilo: "promocion_sin_formacion", evidencia: "p" },
+    { hilo: "soledad_del_rol", evidencia: "s" },
+  ]);
+  // el modelo devolvió [] en este turno → NO se pierde nada
+  assert.deepEqual(fusionarMecanismos(previos, []), previos);
+});
+
+test("upsertsFenomenos: usa las filas previas para no pisar los mecanismos", () => {
+  const previa: FilaFenomeno = {
+    fenomeno_tipo: "mandos_medios",
+    cond_evidencia: true,
+    cond_recurrencia: false,
+    cond_consecuencia: false,
+    cond_hipotesis: false,
+    estado: "en_observacion",
+    intensidad: null,
+    confianza: null,
+    mecanismo_organizacional: null,
+    consecuencia_operativa: null,
+    indicador_economico: null,
+    mecanismos: [{ hilo: "el_sandwich", evidencia: "acumulada" }],
+    perfil_mando: null,
+    razonamiento: null,
+  };
+  const salida: TurnoSalida = {
+    fenomenos_actualizados: [
+      {
+        fenomeno: "mandos_medios",
+        condiciones: { evidencia: true, recurrencia: true, consecuencia: false, hipotesis: false },
+        estado: "en_observacion",
+        intensidad: null,
+        confianza: null,
+        mecanismo_organizacional: null,
+        consecuencia_operativa: null,
+        indicador_economico_afectado: null,
+        mecanismos: [],
+        razonamiento: null,
+      },
+    ],
+    accion: "profundizar",
+    fenomeno_siguiente_prioridad: "mandos_medios",
+    fin_diagnostico: false,
+    sugerencias_pregunta: ["a", "b"],
+    alerta_seguridad: false,
+  };
+  const [fila] = upsertsFenomenos("d", salida, "2026-09-20T00:00:00.000Z", [previa]);
+  assert.deepEqual(fila.mecanismos, [{ hilo: "el_sandwich", evidencia: "acumulada" }]);
+  assert.equal(fila.cond_recurrencia, true);
 });

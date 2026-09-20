@@ -27,3 +27,46 @@ body {
 }
 .serif { font-family: var(--font-display); }
 button { font-family: inherit; cursor: pointer; }
+
+/* ── Componentes base (DESIGN_SYSTEM.md) ─────────────────────────────────── */
+.ky-page { max-width: 1180px; margin: 0 auto; padding: 24px 20px 56px; }
+.ky-card {
+  background: var(--g1); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 18px;
+}
+.ky-label {
+  display: block; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--t2); margin-bottom: 6px;
+}
+.ky-input, .ky-select, .ky-textarea {
+  width: 100%; background: var(--g2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); color: var(--t0); padding: 13px 14px; font-size: 15px;
+  font-family: inherit; outline: none;
+}
+.ky-input:focus, .ky-select:focus, .ky-textarea:focus { border-color: var(--ac); }
+.ky-textarea { resize: vertical; line-height: 1.55; min-height: 130px; }
+.ky-btn {
+  background: var(--ac); color: var(--g0); border: 1px solid var(--ac);
+  border-radius: var(--radius-md); padding: 13px 20px; font-size: 14px; font-weight: 500;
+  letter-spacing: 0.04em; min-height: 46px;
+}
+.ky-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ky-btn-ghost {
+  background: transparent; color: var(--t1); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); padding: 10px 16px; font-size: 13px; min-height: 40px;
+}
+.ky-btn-ghost:hover:not(:disabled) { border-color: var(--ac); color: var(--t0); }
+.ky-pill {
+  text-align: left; background: var(--g2); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg); color: var(--t0); padding: 12px 14px; font-size: 14px;
+  line-height: 1.5; font-weight: 300;
+}
+.ky-pill:hover { border-color: var(--ac); }
+.ky-h { font-family: var(--font-display); font-weight: 500; letter-spacing: -0.02em; }
+.ky-muted { color: var(--t2); font-size: 13px; line-height: 1.6; }
+.ky-grid-2 { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.ky-grid-conv { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+@media (min-width: 900px) {
+  .ky-grid-2 { grid-template-columns: 1fr 1fr; }
+  .ky-grid-conv { grid-template-columns: minmax(0, 1.5fr) minmax(280px, 1fr); }
+}

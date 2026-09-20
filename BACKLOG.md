@@ -48,7 +48,12 @@
 - ⬜ Dar de alta a los counselors en Supabase → Authentication → Users (hoy hay 0) y correr `supabase/seed.sql`
   (consentimiento placeholder; `consentimiento_textos` está vacía).
 - ⬜ Componentes base del `DESIGN_SYSTEM.md` (hoy estilos inline con tokens).
-- ⬜ `POST /api/diagnostico` + Pantalla Inicio: datos de empresa + consentimiento de audio versionado.
+- ✅ `POST /api/diagnostico` (empresa + diagnóstico + datos_economicos, con rollback) + pantallas Inicio
+  (`/`, lista) y `/diagnostico/nuevo` (N, S, R; parseo argentino "850.000" / "18,5"). El consentimiento de audio
+  está soportado por la API y validado (AC), la UI llega con el STT (Fase 6).
+- ✅ **E2E real verificado (2026-09-20)**: sesión → alta → entrevista de 11 turnos con Gemini → DB. Cifrado ok
+  (texto ilegible en la tabla, se descifra por RPC), RLS ok, DD-11 ok (nada confirmado antes del turno 10;
+  mandos_medios se confirma en el 10). `scratch/e2e.mjs` (gitignored) crea y BORRA su usuario de prueba.
 - ⬜ `InactivityTimer` (timeout de sesión).
 
 ## Fase 4 — Motor de Turno
@@ -82,6 +87,10 @@
 
 ## Fase 5 — Pantalla Conversación
 
+- ✅ Versión mínima en modo texto: `/diagnostico/[id]` — historial descifrado, «Respuesta lista → analizar»,
+  sugerencias como pills (tocar = completa "qué le preguntaste"), Mapa EC en construcción (5 fenómenos,
+  4 condiciones, estado), avance «n de mínimo 10», avisos de los guardarraíles, banner de `alerta_seguridad`.
+- ⬜ Falta: botón «Cerrar diagnóstico» (Fase 7), `fenomeno_en_curso` real (hoy se manda null), indicador de conexión.
 - ⬜ Mapa EC en construcción (chips + intensidad/confianza).
 - ⬜ Control "respuesta lista → analizar" + detección de silencio.
 - ⬜ Sugerencias de próxima pregunta (pills).

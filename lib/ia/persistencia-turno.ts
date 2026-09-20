@@ -3,7 +3,8 @@
  * tipos del dominio. Sin IO (el Route Handler hace los selects/inserts).
  */
 
-import { FENOMENOS, type FenomenoDetectado, type FenomenoTipo } from "../diagnostico/types.ts";
+import { FENOMENOS } from "../diagnostico/types.ts";
+import type { FenomenoDetectado, FenomenoTipo, MecanismoDetectado } from "../diagnostico/types.ts";
 import type { FenomenoActualizado, TurnoSalida } from "./validar.ts";
 
 /** Fila de `public.fenomeno_detectado` tal como la devuelve supabase-js. */
@@ -96,11 +97,28 @@ export interface UpsertFenomeno {
   updated_at: string;
 }
 
+/**
+ * Une los mecanismos (hilos) ya guardados con los que devolvio el modelo en este turno.
+ * El modelo suele devolver sólo lo nuevo (o nada): pisar la lista perdia la evidencia acumulada.
+ * Se conserva el orden de aparicion; si un hilo se repite, gana la evidencia mas reciente.
+ */
+export function fusionarMecanismos(
+  previos: MecanismoDetectado[],
+  nuevos: MecanismoDetectado[],
+): MecanismoDetectado[] {
+  const porHilo = new Map<string, MecanismoDetectado>();
+  for (const m of previos) porHilo.set(m.hilo, m);
+  for (const m of nuevos) porHilo.set(m.hilo, m);
+  return [...porHilo.values()];
+}
+
 export function upsertsFenomenos(
   diagnostico_id: string,
   salida: TurnoSalida,
   ahoraISO: string,
+  filasPrevias: FilaFenomeno[] = [],
 ): UpsertFenomeno[] {
+  const previoPorTipo = new Map(filasPrevias.map((r) => [r.fenomeno_tipo, r]));
   return salida.fenomenos_actualizados.map((f) => ({
     diagnostico_id,
     fenomeno_tipo: f.fenomeno,
@@ -114,7 +132,7 @@ export function upsertsFenomenos(
     mecanismo_organizacional: f.mecanismo_organizacional,
     consecuencia_operativa: f.consecuencia_operativa,
     indicador_economico: f.indicador_economico_afectado,
-    mecanismos: f.mecanismos,
+    mecanismos: fusionarMecanismos(previoPorTipo.get(f.fenomeno)?.mecanismos ?? [], f.mecanismos),
     razonamiento: f.razonamiento,
     updated_at: ahoraISO,
   }));

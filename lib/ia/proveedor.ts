@@ -28,8 +28,10 @@ interface Preset {
 const PRESETS: Record<Exclude<ProveedorIA, "claude" | "custom">, Preset> = {
   gemini: {
     baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-    // 3.5-flash: los 3.6/3.7/3.8 y flash-latest daban 503 por saturación en las pruebas (2026-09-20).
-    modelo: "gemini-3.5-flash",
+    // flash-lite: rápido (~2 s) y con su propia cuota diaria. El plan gratis tiene un tope DIARIO por modelo
+    // (3.5-flash: 20 requests/día ≈ 1 entrevista). 3.6/3.7/3.8 y flash-latest daban 503 por saturación;
+    // 2.5-flash ya no está disponible para cuentas nuevas (2026-09-20).
+    modelo: "gemini-3.5-flash-lite",
     razonamiento: "low",
   },
   groq: { baseUrl: "https://api.groq.com/openai/v1", modelo: "llama-3.3-70b-versatile" },

@@ -147,7 +147,7 @@ export async function POST(req: Request) {
   if (salida.fenomenos_actualizados.length > 0) {
     await svc
       .from("fenomeno_detectado")
-      .upsert(upsertsFenomenos(body.diagnostico_id, salida, ahora), {
+      .upsert(upsertsFenomenos(body.diagnostico_id, salida, ahora, (filas ?? []) as FilaFenomeno[]), {
         onConflict: "diagnostico_id,fenomeno_tipo",
       });
   }

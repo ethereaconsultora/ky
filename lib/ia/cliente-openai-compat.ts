@@ -126,10 +126,15 @@ export function clienteOpenAICompat(cfg: ConfigCompat): ClienteModelo {
       const res = await postear(mensajes, maxTokens);
 
       if (!res.ok) {
-        const detalle = (await res.text().catch(() => "")).slice(0, 300);
+        const cuerpo = await res.text().catch(() => "");
+        const detalle = cuerpo.slice(0, 300);
+        // Los planes gratis tienen tope DIARIO por modelo (Gemini free: 20 requests/dia): esperar no lo arregla.
+        const diario = res.status === 429 && /PerDay/i.test(cuerpo);
         throw new ErrorIA(
           "modelo_no_disponible",
-          `Proveedor de IA respondió ${res.status}${res.status === 429 ? " (límite de uso)" : ""}: ${detalle}`,
+          diario
+            ? "Se agotó el límite DIARIO del plan gratuito para este modelo. Probá con otro modelo (KY_IA_MODELO) o esperá al día siguiente."
+            : `Proveedor de IA respondió ${res.status}${res.status === 429 ? " (límite de uso)" : ""}: ${detalle}`,
         );
       }
 
