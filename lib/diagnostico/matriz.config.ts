@@ -15,7 +15,7 @@ import type {
   PlazoEfecto,
 } from "./types.ts";
 
-export const MATRIZ_VERSION = "v0.1.0";
+export const MATRIZ_VERSION = "v0.2.0"; // v0.2.0: guardarraíles de suficiencia (DD-11)
 
 // ── Principio rector (va al [CONTEXTO COMÚN]) ──────────────────────────────
 export const PRINCIPIO_RECTOR =
@@ -46,9 +46,27 @@ export const CONDICIONES_DEF: Record<
   },
 };
 
+// ── Guardarraíles de suficiencia (DD-11) ──────────────────────────────────
+// La app NUNCA emite un diagnóstico ni saca conclusiones con poca evidencia. Estas reglas
+// las aplica el CÓDIGO sobre la salida del modelo (no dependen del prompt ni del modelo).
+// "turno" = una respuesta del entrevistado analizada (una fila de respuesta_cruda).
+export const GUARDARRAILES = {
+  // R1 — Piso global: hasta llegar a este nº de turnos no hay ningún fenómeno "confirmado",
+  //       no se cierra el diagnóstico y no hay económico ni intervención.
+  min_turnos_diagnostico: 10,
+  // R2 — Piso por fenómeno: un fenómeno suma condiciones despacio. Su PRIMER turno puede
+  //       cumplir hasta `condiciones_en_primer_turno`; cada turno propio siguiente, hasta
+  //       `condiciones_por_turno_adicional` más. Con 4 condiciones ⇒ mínimo 3 turnos propios
+  //       para confirmar. Una sola respuesta, por rica que sea, nunca confirma nada.
+  condiciones_en_primer_turno: 2,
+  condiciones_por_turno_adicional: 1,
+  // R3 — Confianza "alta" sólo con este nº de turnos propios en el fenómeno (si no, "media").
+  confianza_alta_min_turnos: 4,
+} as const;
+
 // ── Presupuesto de preguntas ──────────────────────────────────────────────
 export const PRESUPUESTO = {
-  blando_min: 8,
+  blando_min: GUARDARRAILES.min_turnos_diagnostico, // era 8; sube a 10 (decisión de Ari, DD-11)
   blando_max: 15,
   duro_por_fenomeno: 4,
   // Regla I5 del plan: pasado blando_max se puede CERRAR un fenómeno en curso,

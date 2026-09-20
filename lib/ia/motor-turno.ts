@@ -14,6 +14,9 @@ import {
 } from "../diagnostico/prompts/motor-turno.ts";
 import { MAPA_INDAGACION_VERSION } from "../diagnostico/mapa-indagacion.config.ts";
 import { MATRIZ_VERSION } from "../diagnostico/matriz.config.ts";
+import type { FenomenoTipo } from "../diagnostico/types.ts";
+import { aplicarGuardarrailes } from "./guardarrailes.ts";
+import type { Correccion, Progreso } from "./guardarrailes.ts";
 import { normalizarTranscripcion, sanearSugerencias } from "./normalizar.ts";
 import { ErrorIA, type ClienteModelo } from "./tipos.ts";
 import type { TurnoSalida } from "./validar.ts";
@@ -32,11 +35,19 @@ export interface MetaLlamadaTurno {
   tokens_out: number | null;
   latencia_ms: number;
   transcripcion_truncada: boolean;
+  /** Cuantas correcciones de guardarrailes (DD-11) se aplicaron a la salida del modelo. */
+  correcciones_guardarrailes: number;
 }
 
 export interface ResultadoMotorTurno {
+  /** Salida del modelo YA pasada por los guardarrailes de suficiencia (DD-11). */
   salida: TurnoSalida;
   meta: MetaLlamadaTurno;
+  /** Avance hacia el minimo de preguntas para poder concluir. */
+  progreso: Progreso;
+  /** Mensajes para el Counselor cuando se retuvo o recorto una conclusion. */
+  avisos: string[];
+  correcciones: Correccion[];
 }
 
 /** Version del prompt: fija por env para auditar; cae a la de la matriz. */
@@ -68,16 +79,22 @@ export async function ejecutarTurno(
   const { datos, uso } = await cliente.turno(system, user);
 
   // PSAI B4 - saneo de lo que vuelve al cliente.
-  const salida: TurnoSalida = {
-    ...datos,
-    sugerencias_pregunta: sanearSugerencias(datos.sugerencias_pregunta),
-  };
-  if (salida.sugerencias_pregunta.length < 2) {
+  const sugerencias = sanearSugerencias(datos.sugerencias_pregunta);
+  if (sugerencias.length < 2) {
     throw new ErrorIA(
       "salida_invalida",
       "El modelo devolvio menos de 2 sugerencias utiles tras el saneo.",
     );
   }
+
+  // DD-11 - guardarrailes de suficiencia: el modelo propone, el codigo dispone.
+  const turnosPropiosPrevios: Partial<Record<FenomenoTipo, number>> = {};
+  for (const f of entrada.estado_fenomenos) turnosPropiosPrevios[f.fenomeno] = f.preguntas_hechas;
+  const g = aplicarGuardarrailes(
+    { ...datos, sugerencias_pregunta: sugerencias },
+    { turnos: entrada.preguntas_totales + 1, turnosPropiosPrevios },
+  );
+  const salida: TurnoSalida = g.salida;
 
   return {
     salida,
@@ -90,6 +107,10 @@ export async function ejecutarTurno(
       tokens_out: uso.tokens_out,
       latencia_ms: uso.latencia_ms,
       transcripcion_truncada: norm.truncada,
+      correcciones_guardarrailes: g.correcciones.length,
     },
+    progreso: g.progreso,
+    avisos: g.avisos,
+    correcciones: g.correcciones,
   };
 }

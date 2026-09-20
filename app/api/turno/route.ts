@@ -6,7 +6,8 @@
  * llama a Claude (`lib/ia`) → persiste respuesta_cruda (cifrada), fenomeno_detectado
  * y llamada_ia con el service role → devuelve la salida saneada.
  *
- * Ver spec/API_CONTRACTS.md.
+ * Ver spec/API_CONTRACTS.md. La salida pasa por los guardarrailes de suficiencia (DD-11):
+ * nunca hay conclusiones antes del mínimo de turnos.
  */
 
 import { NextResponse } from "next/server";
@@ -170,5 +171,8 @@ export async function POST(req: Request) {
     fin_diagnostico: salida.fin_diagnostico,
     sugerencias_pregunta: salida.sugerencias_pregunta,
     alerta_seguridad: salida.alerta_seguridad,
+    // DD-11: avance hacia el mínimo de preguntas y avisos cuando se retuvo una conclusión.
+    progreso: resultado.progreso,
+    avisos: resultado.avisos,
   });
 }

@@ -17,14 +17,14 @@ rate limit (Upstash). Detalle de esquemas en `openapi.yaml`.
 |---|---|---|---|
 | POST | `/api/diagnostico` | counselor | Crea empresa (o la reusa) + diagnóstico `en_curso`, guarda `datos_economicos` y el consentimiento |
 | GET | `/api/diagnostico/[id]` | counselor dueño / admin | Estado completo: fenómenos, mecanismos, respuestas (metadata), Mapa EC |
-| POST | `/api/diagnostico/[id]/cerrar` | counselor dueño | Marca `cerrado`, dispara síntesis + motor económico |
+| POST | `/api/diagnostico/[id]/cerrar` | counselor dueño | Marca `cerrado`, dispara síntesis + motor económico. **Con < 10 turnos: `409 evidencia_insuficiente`** (`evaluarCierre()`, DD-11); con `forzar_sin_diagnostico` cierra como `SIN_EVIDENCIA_SUFICIENTE`, sin económico ni intervención |
 | POST | `/api/diagnostico/[id]/pausar` | counselor dueño | `pausado` + `resume_token` + `expires_at` |
 
 ## Motores de IA (BFF)
 
 | Método | Ruta | Modelo | Rate limit | Descripción |
 |---|---|---|---|---|
-| POST | `/api/turno` | `claude-haiku-4-5` | 30 / 5 min por `diagnostico_id` | Recibe `{ diagnostico_id, respuesta_texto }`. Normaliza (PSAI B1), llama al Motor de Turno, persiste `respuesta_cruda` + `fenomeno_detectado` + `llamada_ia`. Devuelve `fenomenos_actualizados`, `accion`, `fenomeno_siguiente_prioridad`, `sugerencias_pregunta[]`, `alerta_seguridad` |
+| POST | `/api/turno` | `claude-haiku-4-5` | 30 / 5 min por `diagnostico_id` | Recibe `{ diagnostico_id, respuesta_texto }`. Normaliza (PSAI B1), llama al Motor de Turno, persiste `respuesta_cruda` + `fenomeno_detectado` + `llamada_ia`. Pasa por los guardarraíles de suficiencia (DD-11). Devuelve `fenomenos_actualizados`, `accion`, `fenomeno_siguiente_prioridad`, `sugerencias_pregunta[]`, `alerta_seguridad`, `progreso {turnos, minimo, faltan, puede_concluir}` y `avisos[]` |
 | POST | `/api/sintesis` | `claude-opus-5` | 5 / hora por `diagnostico_id` | Corre el Motor de Síntesis sobre los fenómenos confirmados. Persiste `relacion_fenomeno`, `reversibilidad`, `intervencion_propuesta`, `diagnostico.caso` |
 | POST | `/api/sintesis/mensaje` | `claude-haiku-4-5` | 5 / hora por `diagnostico_id` | Redacta el mensaje de cierre a partir del `resultado_tipo` ya clasificado |
 

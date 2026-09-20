@@ -263,3 +263,28 @@ el español rioplatense: sirve para probar plomería/UX, **no** para calibrar la
   el entrevistado en un turno propio). Candidato a regla en el prompt del turno / tope en el orquestador.
   No se tocó el método: decisión de Ari.
 
+---
+
+### [2026-09-20] — DD-11: guardarraíles de suficiencia ("nunca concluir con poca evidencia")
+
+**Prompt**: el test con Gemini confirmó un fenómeno con `alta` confianza tras UNA respuesta. "Eso no debe suceder
+nunca … hasta no pasar 10 preguntas no puede emitir diagnóstico … esa regla u otra que consideres mejor."
+
+**Resultado**: ✅ Regla en el **código** (no sólo en el prompt), en dos capas + confianza:
+- **R1** piso global 10 turnos: sin `confirmado`, sin `fin_diagnostico`, cierre sólo `SIN_EVIDENCIA_SUFICIENTE`.
+- **R2** piso por fenómeno: 2 condiciones en su primer turno, +1 por turno propio ⇒ confirmar exige ≥ 3 turnos
+  propios (sólo R1 permitiría confirmar en el turno 10 con una respuesta suelta).
+- **R3** confianza `alta` sólo con ≥ 4 turnos propios.
+- Lo retenido conserva `mecanismos`/condiciones recortadas y borra intensidad, confianza y conclusiones; `cerrar`→`profundizar`.
+
+**Archivos**: `lib/diagnostico/{matriz.config (GUARDARRAILES, MATRIZ v0.2.0, blando_min 8→10),suficiencia,clasificador (opción {turnos})}.ts`,
+`lib/diagnostico/prompts/motor-turno.ts` (reglas en el system prompt + `TURNO ACTUAL n` en el user message),
+`lib/ia/{guardarrailes,motor-turno}.ts`, `app/api/turno/route.ts` (devuelve `progreso` y `avisos`),
+tests `suficiencia.test.ts` (8), `guardarrailes.test.ts` (9), `motor-turno.test.ts` (+3) → **70/70**.
+Docs: DD-11, AC-D6..D9, `API_CONTRACTS.md`, BACKLOG.
+
+**Verificación real (Gemini 3.5-flash, mismo caso que sobre-confirmó)**: turno 3 → `en_observacion`, 2 condiciones,
+`profundizar`, y el propio modelo cita "turno 3 (menor a 10)". Latencia 4,5 s.
+
+**Pendiente**: `/api/diagnostico/[id]/cerrar` debe usar `evaluarCierre()` (AC-D9); Ari valida los números.
+

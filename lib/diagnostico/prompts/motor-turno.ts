@@ -15,7 +15,8 @@ import {
   MAPA_INDAGACION_VERSION,
   MECANISMOS_PROFUNDIDAD,
 } from "../mapa-indagacion.config.ts";
-import { FENOMENOS_DEF, MATRIZ_VERSION, PRESUPUESTO } from "../matriz.config.ts";
+import { FENOMENOS_DEF, GUARDARRAILES, MATRIZ_VERSION, PRESUPUESTO } from "../matriz.config.ts";
+import { turnosFaltantes, turnosMinimosParaConfirmar } from "../suficiencia.ts";
 import { FENOMENOS, type FenomenoDetectado } from "../types.ts";
 
 function serializarMapaIndagacion(): string {
@@ -101,6 +102,18 @@ Hacé, en este orden:
 6. alerta_seguridad = true si el entrevistado reveló autolesión, acoso, violencia o
    un ilícito. No repitas el contenido sensible en tu salida.
 
+REGLAS DE SUFICIENCIA (el sistema las verifica y DESCARTA lo que las viole — no las fuerces):
+  - Antes de la pregunta ${GUARDARRAILES.min_turnos_diagnostico} no hay conclusiones: ningún fenómeno se marca
+    "confirmado" y fin_diagnostico=false. Hasta ahí tu trabajo es indagar, no concluir.
+  - Una sola respuesta, por rica que sea, no confirma nada. Un fenómeno necesita al menos
+    ${turnosMinimosParaConfirmar()} turnos propios: en su primer turno podés dar por cumplidas hasta
+    ${GUARDARRAILES.condiciones_en_primer_turno} condiciones y hasta ${GUARDARRAILES.condiciones_por_turno_adicional} más por cada
+    turno siguiente. La hipótesis se cierra recién cuando el ENTREVISTADO la valida en un turno propio.
+  - Confianza "alta" sólo con ${GUARDARRAILES.confianza_alta_min_turnos} turnos o más sobre el fenómeno; antes, "media".
+  - Si un fenómeno tiene menos turnos propios que el mínimo, aunque parezca completo: acción PROFUNDIZAR,
+    con sugerencias que apunten a lo que falta (recurrencia por contraste temporal, consecuencia concreta,
+    validación de la hipótesis). No CERRAR.
+
 MECANISMOS DE PROFUNDIDAD (usalos al componer):
 ${profundidad}
 
@@ -130,12 +143,20 @@ export function construirUserMessageTurno(e: EntradaTurno): string {
       const cond = Object.entries(f.condiciones)
         .map(([k, v]) => `${k}:${v ? "sí" : "no"}`)
         .join(" ");
-      return `- ${f.fenomeno} [${f.estado}] cond(${cond}) intensidad:${f.intensidad ?? "-"} confianza:${f.confianza ?? "-"} preguntas:${f.preguntas_hechas} mecanismos:${f.mecanismos.map((m) => m.hilo).join(",") || "-"}`;
+      return `- ${f.fenomeno} [${f.estado}] cond(${cond}) intensidad:${f.intensidad ?? "-"} confianza:${f.confianza ?? "-"} turnos_propios_previos:${f.preguntas_hechas} mecanismos:${f.mecanismos.map((m) => m.hilo).join(",") || "-"}`;
     })
     .join("\n");
 
+  const turno = e.preguntas_totales + 1;
+  const faltan = turnosFaltantes(turno);
+  const suficiencia =
+    faltan > 0
+      ? `faltan ${faltan} para poder concluir: NO marques ningún fenómeno como confirmado ni cierres el diagnóstico`
+      : "ya se puede concluir, siempre que cada fenómeno cumpla sus propios mínimos";
+
   return `EMPRESA: ${e.contexto_empresa.nombre} · sector: ${e.contexto_empresa.sector ?? "s/d"} · empleados: ${e.contexto_empresa.n ?? "s/d"}
-PREGUNTAS HECHAS EN TOTAL: ${e.preguntas_totales}
+TURNO ACTUAL: ${turno} (mínimo para concluir: ${GUARDARRAILES.min_turnos_diagnostico}; ${suficiencia})
+PREGUNTAS HECHAS ANTES DE ESTA RESPUESTA: ${e.preguntas_totales}
 FENÓMENO EN CURSO: ${e.fenomeno_en_curso ?? "ninguno"}
 
 ESTADO ACTUAL DE LOS FENÓMENOS:

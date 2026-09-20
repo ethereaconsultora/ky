@@ -85,3 +85,33 @@ al aprobar el plan.
 ## DD-10 — Sin librerías de gráficos
 
 - Heredado de Etherea DS. El Mapa EC (barras, grafo de casos) se dibuja con SVG y divs.
+
+## DD-11 — Guardarraíles de suficiencia: nunca concluir con poca evidencia
+
+- **Contexto**: en la prueba real con un modelo gratuito, UNA sola respuesta del entrevistado bastó
+  para que el modelo marcara las 4 condiciones, `confirmado`, `severo` y confianza `alta`. Un
+  diagnóstico así de apresurado dejaría la app obsoleta. Pedirle al prompt que "no lo haga" no alcanza:
+  depende del modelo. Decisión de Ari: piso de 10 preguntas; se completó con un piso por fenómeno.
+- **Elección**: reglas determinísticas que aplica el **código** sobre la salida del modelo
+  (`lib/diagnostico/suficiencia.ts` + `lib/ia/guardarrailes.ts`; números en `GUARDARRAILES`):
+  - **R1 — piso global**: antes del turno **10** ningún fenómeno queda `confirmado`, `fin_diagnostico`
+    es `false`, y el cierre sólo puede dar `SIN_EVIDENCIA_SUFICIENTE` (sin económico ni intervención).
+  - **R2 — piso por fenómeno**: su primer turno puede dar por cumplidas hasta **2** condiciones y cada
+    turno propio siguiente **1** más ⇒ confirmar exige **≥ 3 turnos propios** y las 4 condiciones. Cae
+    primero la hipótesis (la valida el entrevistado en un turno propio). Sin R2, R1 solo permitiría
+    confirmar en el turno 10 con una única respuesta sobre ese fenómeno.
+  - **R3 — confianza `alta`** sólo con **≥ 4** turnos propios; antes se baja a `media`.
+  - Lo retenido conserva lo observado (`mecanismos`, condiciones recortadas) pero borra las
+    conclusiones (`intensidad`, `confianza`, `mecanismo_organizacional`, `consecuencia_operativa`,
+    indicador). Si la acción era `cerrar`, pasa a `profundizar`.
+  - Doble defensa: `clasificarDominante(fenomenos, { turnos })` devuelve `SIN_EVIDENCIA_SUFICIENTE`
+    con menos de 10 turnos aunque algún fenómeno figure como confirmado.
+  - El prompt del turno declara las reglas y el user message informa `TURNO ACTUAL n (mínimo 10…)`,
+    para que el modelo no las fuerce; el código las hace cumplir igual.
+- **Alternativa descartada**: sólo el piso global. Insuficiente (ver R2).
+- **Límite conocido**: los "turnos propios" se cuentan por `respuesta_cruda.fenomeno_asociado`, que guarda
+  UN fenómeno por turno (el principal). Subcuenta los secundarios ⇒ el error es hacia el lado seguro
+  (confirma menos). Se puede afinar con una columna `fenomenos_tocados text[]` si Ari lo pide.
+- **Impacto**: `MATRIZ_VERSION` v0.2.0; `PRESUPUESTO.blando_min` pasa de 8 a 10 (los MD decían 8–15);
+  `/api/turno` devuelve `progreso` y `avisos`; el endpoint de cierre DEBE usar `evaluarCierre()`.
+

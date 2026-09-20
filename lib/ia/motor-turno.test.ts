@@ -159,3 +159,64 @@ test("zTurno acepta el fixture SALIDA_OK (cruce con SCHEMA_MOTOR_TURNO)", () => 
 test("zTurno rechaza < 2 sugerencias", () => {
   assert.equal(zTurno.safeParse({ ...SALIDA_OK, sugerencias_pregunta: ["una"] }).success, false);
 });
+
+test("ejecutarTurno: aunque el modelo confirme todo en el turno 3, la salida NO trae conclusiones (DD-11)", async () => {
+  const confirmaTodo: TurnoSalida = {
+    ...SALIDA_OK,
+    fenomenos_actualizados: [
+      {
+        fenomeno: "mandos_medios",
+        condiciones: { evidencia: true, recurrencia: true, consecuencia: true, hipotesis: true },
+        estado: "confirmado",
+        intensidad: "critico",
+        confianza: "alta",
+        mecanismo_organizacional: "conclusión apresurada",
+        consecuencia_operativa: "otra conclusión apresurada",
+        indicador_economico_afectado: "rotacion",
+        mecanismos: [{ hilo: "el_sandwich", evidencia: "e" }],
+        razonamiento: null,
+      },
+    ],
+    accion: "cerrar",
+    fin_diagnostico: true,
+  };
+  const res = await ejecutarTurno(
+    { ...ENTRADA_BASE, preguntas_totales: 2, respuesta_cruda: "un monólogo largo y rico" },
+    clienteFake(confirmaTodo),
+  );
+  assert.equal(res.salida.fin_diagnostico, false);
+  const f = res.salida.fenomenos_actualizados[0];
+  assert.equal(f.estado, "en_observacion");
+  assert.equal(f.intensidad, null);
+  assert.equal(f.mecanismo_organizacional, null);
+  assert.equal(res.progreso.turnos, 3);
+  assert.equal(res.progreso.faltan, 7);
+  assert.equal(res.progreso.puede_concluir, false);
+  assert.ok(res.meta.correcciones_guardarrailes > 0);
+  assert.ok(res.avisos.length > 0);
+});
+
+test("ejecutarTurno: el user message informa el turno actual y el mínimo", async () => {
+  let visto = "";
+  await ejecutarTurno(
+    { ...ENTRADA_BASE, preguntas_totales: 4, respuesta_cruda: "algo" },
+    clienteFake(SALIDA_OK, (_s, u) => {
+      visto = u;
+    }),
+  );
+  assert.match(visto, /TURNO ACTUAL: 5 \(mínimo para concluir: 10; faltan 5/);
+  assert.match(visto, /NO marques ningún fenómeno como confirmado/);
+});
+
+test("el system prompt declara las reglas de suficiencia", async () => {
+  let visto = "";
+  await ejecutarTurno(
+    { ...ENTRADA_BASE, respuesta_cruda: "algo" },
+    clienteFake(SALIDA_OK, (s) => {
+      visto = s;
+    }),
+  );
+  assert.match(visto, /REGLAS DE SUFICIENCIA/);
+  assert.match(visto, /Antes de la pregunta 10 no hay conclusiones/);
+  assert.match(visto, /al menos\s+3 turnos propios/);
+});

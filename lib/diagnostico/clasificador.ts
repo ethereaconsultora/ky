@@ -15,6 +15,7 @@ import {
   NORM_CONFIANZA,
   NORM_INTENSIDAD,
 } from "./matriz.config.ts";
+import { puedeConcluir } from "./suficiencia.ts";
 import type {
   CasoDiagnostico,
   ClasificacionDominante,
@@ -44,7 +45,14 @@ export function normalizarScore(
  */
 export function clasificarDominante(
   fenomenos: FenomenoDetectado[],
+  opciones: { turnos?: number } = {},
 ): ClasificacionDominante {
+  // Segunda línea de defensa (DD-11 / R1): con menos turnos que el mínimo NUNCA hay dominante,
+  // aunque algún fenómeno figure como confirmado (por un bug o un estado viejo).
+  if (opciones.turnos !== undefined && !puedeConcluir(opciones.turnos)) {
+    return { resultado_tipo: "SIN_EVIDENCIA_SUFICIENTE", fenomeno_dominante: null, scores: [] };
+  }
+
   const confirmados = fenomenos.filter((f) => f.estado === "confirmado");
 
   const scores = confirmados

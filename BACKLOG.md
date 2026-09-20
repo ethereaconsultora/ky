@@ -70,8 +70,11 @@
   cambiando una variable. Bloqueado en Vercel production salvo `KY_PERMITIR_IA_GRATIS=1` (los tiers
   gratuitos pueden entrenar con los datos → sólo datos ficticios). 16 tests.
 - ✅ Smoke test contra Gemini real (`gemini-3.5-flash`): OK, 6 s/turno con `reasoning_effort=low`.
-- ⬜ **Calibrar sobre-confirmación**: en 1 turno confirmó los 4 criterios con confianza `alta`. Decidir con Ari
-  (regla en el prompt de turno vs. tope en el orquestador: no `confirmado` con < N turnos / no `alta` sin recurrencia observada).
+- ✅ **Guardarraíles de suficiencia (DD-11)**: piso global de 10 turnos (R1), 3 turnos propios por fenómeno para
+  confirmar (R2), confianza alta sólo con 4 (R3). Los aplica el código sobre la salida del modelo (no depende
+  del prompt). Verificado con Gemini real: en el turno 3 ya no confirma. 20 tests.
+- ⬜ Ari: revisar los números de `GUARDARRAILES` (10 / 2+1 / 4) y decidir si conviene la columna `fenomenos_tocados`.
+- ⬜ `POST /api/diagnostico/[id]/cerrar` debe usar `evaluarCierre()` (AC-D9).
 - ⬜ **Antes del lanzamiento**: recorrer el eval con Ari sobre Claude (un modelo gratis sigue peor la Mapa de Indagación).
 - ✅ Migración `0006` aplicada.
 - ⬜ Auth real (login) para poder llamar a `/api/turno` de punta a punta.

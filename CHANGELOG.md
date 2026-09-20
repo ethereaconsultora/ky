@@ -55,6 +55,11 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) · SemVer.
   transcripción PSAI B1 + saneo B4 (`normalizar.ts`). 9 tests con doble del cliente.
 - `@anthropic-ai/sdk` `^0.68.0` → `^0.124.0`.
 
+### Added — guardarraíles de suficiencia (DD-11)
+- Nunca se concluye con poca evidencia: piso de 10 turnos para cualquier conclusión o cierre, 3 turnos propios
+  por fenómeno para confirmarlo y confianza `alta` sólo con 4. Lo aplica el código sobre la salida del modelo.
+  `/api/turno` devuelve `progreso` y `avisos`. `MATRIZ_VERSION` v0.2.0.
+
 ### Pendiente
 - Route Handlers (`/api/turno`, `/api/sintesis`, …) + STT + pantallas + integración Newen.
 - Aplicar migraciones contra el proyecto Supabase real (Fase 0) + trigger de alta en `public.users`.

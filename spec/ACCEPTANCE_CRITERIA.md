@@ -18,6 +18,18 @@ Formato Gherkin resumido (Dado / Cuando / Entonces). Referencia: `USER_STORIES.m
 - **AC-D5** · Dado que no hay 3 ejes de fricción cargados, cuando cierro el diagnóstico,
   entonces el `factor_friccion_derivado` se calcula desde los fenómenos confirmados (no falla,
   no usa un default silencioso sin registrarlo).
+- **AC-D6** · Dado un diagnóstico con menos de 10 turnos, cuando el modelo devuelve un fenómeno
+  `confirmado` o `fin_diagnostico: true`, entonces la app lo retiene (`en_observacion`, sin intensidad,
+  confianza ni conclusiones; `fin_diagnostico: false`) y avisa al Counselor cuántas preguntas faltan.
+- **AC-D7** · Dado un fenómeno con menos de 3 turnos propios, cuando el modelo lo devuelve `confirmado`
+  (aunque ya pasaron los 10 turnos totales), entonces no queda confirmado; ninguna respuesta suelta
+  cumple las 4 condiciones.
+- **AC-D8** · Dado un fenómeno con menos de 4 turnos propios, cuando se confirma, entonces su
+  confianza no supera `media`.
+- **AC-D9** · Dado un cierre solicitado con menos de 10 turnos, cuando llamo a
+  `/api/diagnostico/[id]/cerrar`, entonces responde `409 evidencia_insuficiente` (o, con
+  `forzar_sin_diagnostico`, cierra con `SIN_EVIDENCIA_SUFICIENTE` y sin económico ni intervención).
+  `clasificarDominante(..., { turnos })` aplica lo mismo como segunda defensa.
 
 ## Motor de Turno (Fase 4)
 
