@@ -38,7 +38,8 @@ export type CodigoErrorIA =
   | "entrada_invalida"
   | "salida_invalida"
   | "modelo_no_disponible"
-  | "modelo_rechazo";
+  | "modelo_rechazo"
+  | "config_ia";
 
 /** Error de la capa de IA - lo traduce el Route Handler a `{ error: { code, message } }`. */
 export class ErrorIA extends Error {

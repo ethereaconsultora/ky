@@ -223,3 +223,28 @@ Versión A), repo GitHub vacío, `ANTHROPIC_API_KEY`. "seguimos".
 2. Aplicar `supabase/migrations/0006` al proyecto real.
 3. Auth real (decisión #5: login propio EC recomendado) para llamar a `/api/turno` E2E.
 4. Upstash (opcional; si no, queda el limiter en memoria).
+
+---
+
+### [2026-09-20] — Proveedor de IA intercambiable (probar gratis, volver a Claude)
+
+**Prompt**: "quiero reemplazar la api de claude por una gratis … para probar y después cambiar a la de claude".
+
+**Resultado**: ✅ El resto del sistema ya dependía sólo de `ClienteModelo`, así que se agregó una
+segunda implementación y un factory; cambiar de proveedor es una variable de entorno.
+
+- `lib/ia/cliente-openai-compat.ts` — Chat Completions compatible (Gemini / Groq / OpenRouter / custom).
+  Modo JSON (`json_object`) + esquema en el prompt + Zod + **1 reintento** devolviéndole el error de
+  validación. Tolera fences ```json. Sin dependencias (`fetch`).
+- `lib/ia/proveedor.ts` — `crearClienteModelo()` por `KY_PROVEEDOR_IA` (default `claude`). Presets de
+  URL/modelo para gemini (`gemini-2.5-flash`) y groq.
+- `app/api/turno/route.ts` usa el factory. Nuevo código de error `config_ia`.
+- **Guardia de seguridad**: en `VERCEL_ENV=production` un proveedor no-Claude se rechaza salvo
+  `KY_PERMITIR_IA_GRATIS=1`. Motivo: el free tier de Gemini usa el contenido para mejorar los productos
+  de Google (verificado en ai.google.dev/pricing) → nunca entrevistas reales.
+- Tests: 16 nuevos (compat 8, proveedor 8) → 46/46. `tsc` limpio.
+
+**Límite conocido**: sin `KY_IA_API_KEY` no se pudo correr contra un modelo gratis real; el adaptador está
+probado con `fetch` inyectado. Un modelo gratis seguirá peor el prompt largo de la Mapa de Indagación y
+el español rioplatense: sirve para probar plomería/UX, **no** para calibrar la Mapa con Ari.
+

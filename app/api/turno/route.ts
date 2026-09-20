@@ -11,8 +11,8 @@
 
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { clienteAnthropic } from "@/lib/ia/cliente";
 import { ejecutarTurno } from "@/lib/ia/motor-turno";
+import { crearClienteModelo } from "@/lib/ia/proveedor";
 import {
   estadoFenomenos,
   upsertsFenomenos,
@@ -107,11 +107,11 @@ export async function POST(req: Request) {
           n: empresa?.tamano_n ?? null,
         },
       },
-      clienteAnthropic(),
+      crearClienteModelo(),
     );
   } catch (e) {
     if (e instanceof ErrorIA) {
-      const status = e.code === "modelo_no_disponible" ? 502 : e.code === "entrada_invalida" ? 400 : 500;
+      const status = e.code === "modelo_no_disponible" ? 502 : e.code === "entrada_invalida" ? 400 : 500; // config_ia / salida_invalida → 500
       return err(e.code, e.message, status);
     }
     return err("error_interno", "Fallo al procesar el turno.", 500);

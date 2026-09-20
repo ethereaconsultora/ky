@@ -62,7 +62,13 @@
 - ✅ Rate limit: `lib/ratelimit/` — Upstash si hay env, limiter en memoria si no.
 - 🟡 Smoke test contra la API real: **plomería OK** (llega a Claude, arma `output_config.format`),
   pero el workspace de Anthropic no tiene crédito → falta cargar saldo para el eval.
-- ⬜ Aplicar migración `0006` al proyecto real.
+- ✅ Proveedor de IA intercambiable: `lib/ia/proveedor.ts` (`KY_PROVEEDOR_IA=claude|gemini|groq|openrouter|custom`)
+  + `cliente-openai-compat.ts` (modo JSON + Zod + 1 reintento). Para probar gratis y volver a Claude
+  cambiando una variable. Bloqueado en Vercel production salvo `KY_PERMITIR_IA_GRATIS=1` (los tiers
+  gratuitos pueden entrenar con los datos → sólo datos ficticios). 16 tests.
+- ⬜ Cargar `KY_IA_API_KEY` (Gemini gratis en aistudio.google.com/apikey) y correr el smoke test.
+- ⬜ **Antes del lanzamiento**: recorrer el eval con Ari sobre Claude (un modelo gratis sigue peor la Mapa de Indagación).
+- ✅ Migración `0006` aplicada.
 - ⬜ Auth real (login) para poder llamar a `/api/turno` de punta a punta.
 - ⬜ Eval de amplitud/profundidad con Ari (transcripciones ficticias tipo Alemany).
 
