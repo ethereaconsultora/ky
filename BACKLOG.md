@@ -147,8 +147,7 @@
   reversibilidad como rango, fenómeno dominante correcto (crítico > severo, bug de orden corregido). La evidencia por hilo y los
   campos de respuesta NO llegan a Newen. `anon` no ejecuta las funciones (42501) ni lee el vínculo; `ec_foraneo` no está expuesto
   ni con service_role. No se puede vincular dos veces el mismo diagnóstico. Todo lo de prueba se borró de EC.
-- ⬜ Falta comprobar a mano (no lo puedo hacer yo, requiere la contraseña del rol): las 4 queries de verificación de
-  `supabase/roles/newen_reader.sql` (que `newen_reader` NO lea `public.respuesta_cruda` y sea de sólo lectura).
+- ✅ Rol `newen_reader` verificado en EC por el usuario (2026-09-20): lee las vistas públicas; NO lee `respuesta_cruda`, `fenomeno_detectado` ni `diagnostico`; NO escribe; `default_transaction_read_only=on`, `statement_timeout=10s`.
 - ⬜ Falta probar la API route y la pestaña con una sesión real de Newen (`feature/diagnostico-ec` en local o en un Preview).
 - ⬜ Probar la pestaña en un Preview de Newen y recién ahí mergear a `master` (con confirmación de Ari).
 - Decisión: el vínculo cliente ↔ diagnóstico lo guarda **Newen** (`organization_client_ec`), no EC (la FDW es de sólo lectura).
