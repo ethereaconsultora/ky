@@ -22,6 +22,9 @@ la fuente canónica es `migrations/`.
 | 0003 | `empresa`, `diagnostico`, helper `puede_ver_diag()` + RLS. |
 | 0004 | Tablas hijas del diagnóstico (`datos_economicos` … `llamada_ia`) + RLS. |
 | 0005 | Esquema `ec_publico` con las 3 vistas para el FDW. |
+| 0006 | RPC `guardar_respuesta_cruda` / `leer_respuestas_crudas` (cifrado pgcrypto server-side). |
+| 0007 | Trigger de alta en `public.users` al crear un usuario de Auth (+ backfill). |
+| 0008 | `diagnostico.mensaje_cierre`. |
 
 ## Aplicar (Fase 0 — requiere el proyecto ya creado)
 

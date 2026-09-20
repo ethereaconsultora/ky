@@ -112,6 +112,14 @@ export const ECONOMICO = {
   friccion_max: 1.2,
 } as const;
 
+// ── Límites de las proyecciones (cierre) ──────────────────────────────────
+// El modelo NO puede prometer más de lo que la matriz considera creíble: la reversibilidad
+// estimada se recorta a este rango (la matriz usa 0.20–0.55) y el ancho máximo de frentes es 2.
+export const REVERSIBILIDAD_LIMITES = { min: 0.2, max: 0.55 } as const;
+export const MAX_FRENTES_INTERVENCION = 2;
+/** Fracción de la pérdida que un circuito (Caso 3/4) alcanza, mientras no haya dato mejor. */
+export const CIRCUITO_ALCANCE_DEFAULT = 0.5;
+
 /**
  * Δfactor de fricción por fenómeno confirmado (DD-05).
  * Reemplaza la fuente ausente de "3 ejes": el factor se DERIVA de los fenómenos.

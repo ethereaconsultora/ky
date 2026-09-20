@@ -62,7 +62,7 @@ export default async function Home() {
             {diagnosticos.map((d) => (
               <li key={d.id} style={{ borderTop: "1px solid var(--border)" }}>
                 <Link
-                  href={`/diagnostico/${d.id}`}
+                  href={d.estado === "cerrado" ? `/diagnostico/${d.id}/resultado` : `/diagnostico/${d.id}`}
                   style={{
                     display: "flex",
                     justifyContent: "space-between",

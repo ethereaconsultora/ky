@@ -311,3 +311,26 @@ pruebas repetidas conviene otro proveedor/plan; para calibrar con Ari, Claude.
 
 **Verificación**: 85/85 tests · tsc / lint / build limpios.
 
+---
+
+### [2026-09-20] — Cierre del diagnóstico: síntesis + económico + Resultado (Fases 7 y 8 parcial)
+
+**Prompt**: "sigamos".
+
+**Resultado**: ✅ código y tests; 🟡 E2E completo pendiente de aplicar la migración `0008`.
+- `lib/ia/cierre.ts` — `ejecutarCierre()`: DD-11 (bloquea / cierre forzado sin diagnóstico), síntesis + mensaje en paralelo,
+  y reglas duras sobre la salida del modelo (caso por `clasificarCaso`, sólo fenómenos confirmados, máx. 2 frentes,
+  reversibilidad 0,20–0,55 ordenada, respaldo de la matriz, económico con rangos). Constantes nuevas en `matriz.config`
+  (`REVERSIBILIDAD_LIMITES`, `MAX_FRENTES_INTERVENCION`, `CIRCUITO_ALCANCE_DEFAULT`).
+- `lib/api/cierre-filas.ts` (filas a insertar) y `lib/api/formato.ts` (cifras en es-AR, siempre rangos).
+- `POST /api/diagnostico/[id]/cerrar` con cerrojo por `perdida_economica` y rollback; auditoría en `llamada_ia`.
+- Pantalla `/diagnostico/[id]/resultado` (3 capas + relación + intervención borrador) y botón «Cerrar diagnóstico» en la
+  conversación (bajo el mínimo sólo ofrece «Cerrar sin diagnóstico»).
+- Migración `0008` (`diagnostico.mensaje_cierre`), `init_schema.sql` regenerado.
+- **Verificado en vivo**: `cerrar` con 0 turnos → 409 `evidencia_insuficiente` (faltan 10), el diagnóstico sigue en curso,
+  sin pérdida ni intervención; diagnóstico ajeno → 404.
+- Tests: 106/106 · tsc / lint / build limpios.
+
+**Pendiente**: aplicar `0008` y correr `scratch/e2e-cierre.mjs` (cierre forzado, cierre completo con 10 turnos sembrados,
+Resultado, idempotencia, RLS). Aprobar/Enviar + PDF (Fase 8), STT (Fase 6), integración Newen (Fase 9).
+

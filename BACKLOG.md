@@ -79,7 +79,7 @@
   confirmar (R2), confianza alta sólo con 4 (R3). Los aplica el código sobre la salida del modelo (no depende
   del prompt). Verificado con Gemini real: en el turno 3 ya no confirma. 20 tests.
 - ⬜ Ari: revisar los números de `GUARDARRAILES` (10 / 2+1 / 4) y decidir si conviene la columna `fenomenos_tocados`.
-- ⬜ `POST /api/diagnostico/[id]/cerrar` debe usar `evaluarCierre()` (AC-D9).
+- ✅ `POST /api/diagnostico/[id]/cerrar` usa `evaluarCierre()` (AC-D9).
 - ⬜ **Antes del lanzamiento**: recorrer el eval con Ari sobre Claude (un modelo gratis sigue peor la Mapa de Indagación).
 - ✅ Migración `0006` aplicada.
 - ⬜ Auth real (login) para poder llamar a `/api/turno` de punta a punta.
@@ -103,15 +103,22 @@
 
 ## Fase 7 — Síntesis + Económico
 
-- ⬜ `POST /api/sintesis` (Claude `claude-opus-5`).
-- ⬜ Motor económico ejecutado al cierre.
-- ⬜ `resultado_tipo` (incluye `DOMINANTE_DEBIL`).
-- ⬜ Las 4 visualizaciones de caso del Mapa EC.
+- ✅ `POST /api/diagnostico/[id]/cerrar`: DD-11 (409 `evidencia_insuficiente`; `forzar_sin_diagnostico` cierra como
+  SIN_EVIDENCIA_SUFICIENTE sin cifras) → síntesis (Claude/Gemini) + motor económico + mensaje de cierre → persistencia
+  con cerrojo (`perdida_economica`, PK = diagnostico_id) y rollback. `lib/ia/cierre.ts` (puro, 15 tests) +
+  `lib/api/cierre-filas.ts` (4 tests).
+- ✅ Reglas duras sobre la salida del modelo: el `caso` lo calcula el código (`clasificarCaso`), relaciones/intervenciones
+  sólo sobre fenómenos confirmados, máx. 2 frentes, reversibilidad recortada a 0,20–0,55 y ordenada, respaldo de la matriz
+  si el modelo no aporta una intervención válida, reducción y ROI siempre como rango. Nada nace aprobado.
+- ✅ `resultado_tipo` con `DOMINANTE_DEBIL`, motor económico ejecutado al cierre, factor de fricción derivado persistido.
+- 🟡 Migración `0008` (`diagnostico.mensaje_cierre`) — escrita, **falta aplicarla** en el proyecto real.
+- 🟡 E2E del cierre (`scratch/e2e-cierre.mjs`): DD-11 verificado en vivo; el cierre completo espera la `0008`.
+- ⬜ Las 4 visualizaciones de caso del Mapa EC son hoy un diagrama simple (nodos + símbolo); falta el grafo definitivo.
 
 ## Fase 8 — Resultado + Intervención
 
-- ⬜ Pantalla Resultado (3 capas: sabemos / estimamos / proyectamos).
-- ⬜ Pantalla Intervención (rangos, no cifras categóricas).
+- ✅ Pantalla Resultado (`/diagnostico/[id]/resultado`): 3 capas (sabemos / estimamos / proyectamos con borde punteado y «sin validar»), relación entre fenómenos, mensaje de cierre, modo honesto SIN_EVIDENCIA sin cifras.
+- 🟡 Intervención: se muestra dentro de Resultado (reversibilidad como rango, horizonte). Falta pantalla propia.
 - ⬜ Editar / aprobar / enviar + artefacto PDF.
 
 ## Fase 9 — Integración Newen

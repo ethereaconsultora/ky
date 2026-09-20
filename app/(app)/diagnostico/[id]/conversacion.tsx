@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export type EstadoFen = "confirmado" | "en_observacion" | "descartado";
 
@@ -82,6 +83,11 @@ export function Conversacion(props: {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const router = useRouter();
+
+  // cierre del diagnóstico
+  const [cierre, setCierre] = useState<"idle" | "confirmando" | "procesando">("idle");
+  const [errorCierre, setErrorCierre] = useState<string | null>(null);
 
   const pct = Math.min(100, Math.round((turnos / props.minimo) * 100));
   const puedeConcluir = turnos >= props.minimo;
@@ -132,6 +138,29 @@ export function Conversacion(props: {
       setError("No hay conexión con el servidor. Tu respuesta sigue en el cuadro; probá de nuevo.");
     } finally {
       setEnviando(false);
+    }
+  }
+
+  async function cerrar() {
+    setCierre("procesando");
+    setErrorCierre(null);
+    try {
+      const res = await fetch(`/api/diagnostico/${props.diagnosticoId}/cerrar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Bajo el mínimo de preguntas sólo se puede cerrar SIN diagnóstico (DD-11).
+        body: JSON.stringify({ forzar_sin_diagnostico: !puedeConcluir }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setErrorCierre(json?.error?.message ?? "No se pudo cerrar el diagnóstico.");
+        setCierre("confirmando");
+        return;
+      }
+      router.push(`/diagnostico/${props.diagnosticoId}/resultado`);
+    } catch {
+      setErrorCierre("No hay conexión con el servidor. Probá de nuevo.");
+      setCierre("confirmando");
     }
   }
 
@@ -280,6 +309,38 @@ export function Conversacion(props: {
             </div>
           ))}
         </div>
+
+        {!props.soloLectura && (
+          <div className="ky-card" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {cierre === "idle" && (
+              <button type="button" className="ky-btn-ghost" onClick={() => setCierre("confirmando")}>
+                Cerrar diagnóstico
+              </button>
+            )}
+            {cierre !== "idle" && (
+              <>
+                <p style={{ fontSize: 14, lineHeight: 1.55 }}>
+                  {puedeConcluir
+                    ? "Se va a generar el diagnóstico: relaciones entre fenómenos, pérdida estimada e intervención propuesta. Tarda unos segundos."
+                    : `Van ${turnos} de un mínimo de ${props.minimo} preguntas: todavía no se puede emitir un diagnóstico. Podés cerrar igual, pero quedará como «sin evidencia suficiente», sin conclusiones ni cifras.`}
+                </p>
+                {errorCierre && <p style={{ color: "var(--err)", fontSize: 13 }}>{errorCierre}</p>}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button type="button" className="ky-btn" disabled={cierre === "procesando"} onClick={cerrar}>
+                    {cierre === "procesando"
+                      ? "Generando el diagnóstico…"
+                      : puedeConcluir
+                        ? "Sí, cerrar y diagnosticar"
+                        : "Cerrar sin diagnóstico"}
+                  </button>
+                  <button type="button" className="ky-btn-ghost" disabled={cierre === "procesando"} onClick={() => { setCierre("idle"); setErrorCierre(null); }}>
+                    Seguir entrevistando
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -83,7 +83,12 @@ export default async function DiagnosticoPage({ params }: { params: Promise<{ id
 
       {diag.estado !== "en_curso" && (
         <p className="ky-card ky-muted" style={{ marginBottom: 16 }}>
-          Este diagnóstico está {diag.estado}: sólo lectura.
+          Este diagnóstico está {diag.estado}: sólo lectura.{" "}
+          {diag.estado === "cerrado" && (
+            <Link href={`/diagnostico/${id}/resultado`} style={{ color: "var(--ac)" }}>
+              Ver el resultado →
+            </Link>
+          )}
         </p>
       )}
 

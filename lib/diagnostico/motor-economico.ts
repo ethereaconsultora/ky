@@ -9,6 +9,7 @@
 
 import { pesosCoDominancia } from "./clasificador.ts";
 import {
+  CIRCUITO_ALCANCE_DEFAULT,
   DELTA_FACTOR_FRICCION,
   ECONOMICO,
   FACTOR_CONFIANZA_CIRCUITO,
@@ -141,7 +142,7 @@ export function motorEconomico(p: ParamsMotorEconomico): ResultadoEconomico {
   } else {
     // Caso 3/4 — circuito. reduccion = perdida · alcance · grado_reversion(t) · factor_confianza.
     const c = p.circuito ?? {
-      alcance: 0.5,
+      alcance: CIRCUITO_ALCANCE_DEFAULT,
       grado_temprano: 0.35,
       grado_tardio: 0.5,
       hipotetico: caso === 3,
