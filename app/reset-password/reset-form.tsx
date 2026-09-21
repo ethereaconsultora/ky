@@ -6,13 +6,17 @@ import { crearClienteNavegador } from "@/lib/supabase/client";
 import { boton, enlace, errorTexto, input, sub } from "../login/estilos";
 
 /**
- * Llegan desde el link del mail de «recuperar contraseña». El cliente de Supabase canjea el código de la URL
- * y deja una sesión de recuperación: con esa sesión se puede fijar la contraseña nueva. Si en unos segundos
- * no hay sesión, el link venció o se abrió en otro dispositivo.
+ * Llegan desde el link del mail de «crear / recuperar contraseña»: `/reset-password?token_hash=…&type=recovery`
+ * (plantilla «Reset Password» de Supabase, ver spec/DEPLOYMENT.md). El código NO se canjea al abrir la página sino
+ * cuando la persona toca «Continuar»: así los escáneres de links de los servidores de mail (Zoho, Gmail, antivirus)
+ * no gastan el link de un solo uso antes de que llegue al usuario. Canjeado, queda una sesión de recuperación y
+ * se puede fijar la contraseña. Funciona igual desde cualquier dispositivo.
  */
 export function ResetForm() {
   const [listo, setListo] = useState(false);
   const [vencido, setVencido] = useState(false);
+  const [tokenHash, setTokenHash] = useState<string | null>(null);
+  const [canjeando, setCanjeando] = useState(false);
   const [password, setPassword] = useState("");
   const [confirmar, setConfirmar] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -22,15 +26,21 @@ export function ResetForm() {
     const sb = crearClienteNavegador();
     let activo = true;
 
+    const q = new URLSearchParams(window.location.search);
+    const th = q.get("token_hash");
+    const conLink = !!th && q.get("type") === "recovery";
+    if (conLink) setTokenHash(th);
+
     const { data } = sb.auth.onAuthStateChange((_evento, sesion) => {
       if (activo && sesion) setListo(true);
     });
     sb.auth.getSession().then(({ data: d }) => {
       if (activo && d.session) setListo(true);
     });
+    // sin link en la URL (ni sesión abierta) no hay nada que esperar
     const t = setTimeout(() => {
-      if (activo) setVencido(true);
-    }, 5000);
+      if (activo && !conLink) setVencido(true);
+    }, 3000);
 
     return () => {
       activo = false;
@@ -38,6 +48,20 @@ export function ResetForm() {
       data.subscription.unsubscribe();
     };
   }, []);
+
+  async function continuar() {
+    if (!tokenHash) return;
+    setCanjeando(true);
+    const { error } = await crearClienteNavegador().auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+    if (error) {
+      setTokenHash(null);
+      setVencido(true);
+      setCanjeando(false);
+      return;
+    }
+    window.history.replaceState(null, "", "/reset-password"); // saca el código de la barra de direcciones
+    setListo(true);
+  }
 
   async function guardar(e: React.FormEvent) {
     e.preventDefault();
@@ -59,10 +83,17 @@ export function ResetForm() {
   if (!listo) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14, textAlign: "center" }}>
-        {vencido ? (
+        {tokenHash ? (
+          <>
+            <p style={{ fontSize: 15, lineHeight: 1.6 }}>Tocá el botón para elegir tu contraseña.</p>
+            <button type="button" onClick={continuar} disabled={canjeando} style={boton}>
+              {canjeando ? "Verificando…" : "Continuar"}
+            </button>
+          </>
+        ) : vencido ? (
           <>
             <p style={{ fontSize: 15, lineHeight: 1.6 }}>
-              Este link venció o se abrió en otro dispositivo. Pedí uno nuevo desde el mismo dispositivo en el que vas a abrirlo.
+              Este link venció o ya se usó. Pedí uno nuevo y abrilo con el botón del mail.
             </p>
             <Link href="/recuperar" style={enlace}>Pedir un link nuevo</Link>
           </>

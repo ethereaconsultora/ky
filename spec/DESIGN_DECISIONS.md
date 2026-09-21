@@ -150,12 +150,16 @@ al aprobar el plan.
     mail puede fijar la contraseña ⇒ nadie puede «anotarse primero» con un email ajeno. Una cuenta previa SIN confirmar (p. ej. creada
     por fuera con contraseña de un atacante) se borra y se recrea. «Olvidé mi contraseña» es el mismo flujo.
   - Nunca se revela si un email está habilitado (respuesta única); límites: 8 pedidos/hora por IP y 3 links/hora por email.
-  - Contraseña 8–72 caracteres (bcrypt ignora lo que pasa de 72 bytes). El link se genera desde el servidor (flujo implícito):
-    funciona abierto desde cualquier dispositivo.
+  - Contraseña 8–72 caracteres (bcrypt ignora lo que pasa de 72 bytes).
+  - **El link del mail NO usa `{{ .ConfirmationURL }}`** sino `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery` (plantilla
+    «Reset Password»). Motivos: (1) `ConfirmationURL` gasta el código en el primer GET y los escáneres de links de los servidores de mail
+    (Zoho, Gmail, antivirus) lo abren antes que la persona; (2) devuelve la sesión en el `#hash` de la URL, que el cliente de navegador
+    de `@supabase/ssr` (flujo PKCE) rechaza. `/reset-password` canjea el código con `verifyOtp` recién cuando la persona toca «Continuar»,
+    y funciona desde cualquier dispositivo.
 - **Alternativa descartada**: código de invitación compartido (primera versión de este DD): un secreto único para todos, sin
   trazabilidad por persona, y no prueba que el mail sea de quien se anota.
 - **Recomendación operativa**: desactivar «Allow new users to sign up» en Supabase (ya no abre la app, pero evita ruido) y editar la
-  plantilla «Reset Password» para que hable de «crear o cambiar tu contraseña».
+  plantilla «Reset Password» (asunto «Creá tu contraseña — KY»; el cuerpo, con el link de arriba, está en `supabase/plantilla-reset-password.html`).
 - **Cómo habilitar a alguien**: `insert into public.usuarios_habilitados (email, nombre, rol) values ('ana@empresa.com','Lic. Ana Ferrer','counselor');`
   y esa persona entra a `/registro`. Reemplaza el OTP por mail (decisión abierta #5 cerrada).
 - **Impacto**: cambia el login, el middleware y las 6 rutas de escritura; los scripts de prueba habilitan el email antes de crear el usuario.

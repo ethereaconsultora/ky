@@ -423,3 +423,14 @@ Falta que el admin abra el mail y confirme que el link lleva a `/reset-password`
 **Causa**: en Vercel `UPSTASH_REDIS_REST_URL` y `_TOKEN` valen «1» (relleno del scaffold); `limiter()` los tomaba como configurados e intentaba
 usar Upstash → excepción → 500 sin JSON (el form muestra el mensaje genérico). Local no pasa porque no tiene UPSTASH_*.
 **Fix**: `lib/ratelimit/index.ts` sólo usa Upstash si la URL empieza con `https://` y el token tiene >8 caracteres; si no, limiter en memoria.
+
+---
+
+### [2026-09-20] — Fix: el link del mail decía «venció o se abrió en otro dispositivo»
+
+**Prompt**: el mail llegó (SMTP ok), pero `/reset-password` mostró «Este link venció o se abrió en otro dispositivo».
+**Causa**: (1) el link `{{ .ConfirmationURL }}` devuelve la sesión en el `#hash`, y el cliente de navegador de `@supabase/ssr` usa PKCE y lo rechaza;
+(2) además ese link se gasta con el primer GET (escáneres de mail). Mi E2E anterior canjeaba el código desde el servidor, no desde un navegador.
+**Fix**: plantilla con `{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=recovery` (`supabase/plantilla-reset-password.html`) y `/reset-password`
+canjea con `verifyOtp` al tocar «Continuar». **Prueba**: `scratch/e2e-reset-browser.mjs` (Chrome headless real, `puppeteer-core` sin guardar en
+package.json): GET previo no gasta el link, Continuar → contraseña → entra a `/`, link reusado avisa, sin link avisa — todo ✔.
