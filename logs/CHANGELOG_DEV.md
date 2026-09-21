@@ -414,3 +414,12 @@ contraseña aleatoria, creación de contraseña con el link, login + crear diagn
 secuestro previo, límite por email). Ese run usó `KY_ACCESO_MAIL=off` (interruptor sólo local en `/api/acceso/enlace`, no se configura en
 Vercel) para no gastar el cupo de mails de Supabase. El envío real se probó aparte, una vez, a la casilla del admin: la API respondió 200.
 Falta que el admin abra el mail y confirme que el link lleva a `/reset-password` (depende de Site URL / Redirect URLs de Supabase).
+
+---
+
+### [2026-09-20] — Fix: /api/acceso/enlace devolvía 500 en Vercel (UPSTASH_* con valor de relleno)
+
+**Prompt**: en `/recuperar` (preview de `dev`) sale «No se pudo enviar el mail. Probá de nuevo.».
+**Causa**: en Vercel `UPSTASH_REDIS_REST_URL` y `_TOKEN` valen «1» (relleno del scaffold); `limiter()` los tomaba como configurados e intentaba
+usar Upstash → excepción → 500 sin JSON (el form muestra el mensaje genérico). Local no pasa porque no tiene UPSTASH_*.
+**Fix**: `lib/ratelimit/index.ts` sólo usa Upstash si la URL empieza con `https://` y el token tiene >8 caracteres; si no, limiter en memoria.

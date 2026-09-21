@@ -40,3 +40,5 @@ next-env.d.ts
 # transcripciones / evidencia cruda exportada localmente (NUNCA versionar)
 /scratch/
 *.transcripcion.txt
+
+.vercel

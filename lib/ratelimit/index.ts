@@ -97,8 +97,10 @@ export function limiter(nombre: NombrePresupuesto): Limiter {
   if (existente) return existente;
 
   const v = PRESUPUESTOS[nombre];
+  // Un valor de relleno (p. ej. "1" en Vercel) no es una config válida: cae al limiter en memoria en vez de romper la API.
   const tieneUpstash =
-    !!process.env.UPSTASH_REDIS_REST_URL && !!process.env.UPSTASH_REDIS_REST_TOKEN;
+    /^https:\/\//.test(process.env.UPSTASH_REDIS_REST_URL ?? "") &&
+    (process.env.UPSTASH_REDIS_REST_TOKEN ?? "").length > 8;
 
   const impl: Limiter = tieneUpstash
     ? new LimiterUpstash(nombre, v)
