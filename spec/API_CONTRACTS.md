@@ -8,17 +8,11 @@ rate limit (Upstash). Detalle de esquemas en `openapi.yaml`.
 
 | Método | Ruta | Auth | Descripción |
 |---|---|---|---|
-| POST | `/auth/otp` | No | Envía OTP / magic link al email del counselor |
-| GET | `/auth/callback` | No | Callback de Supabase Auth |
+| POST | `/api/acceso/enlace` | No | «Crear cuenta» y «olvidé mi contraseña»: `{ email }`. Si el email está en `usuarios_habilitados`, crea la cuenta (si no existe) y Supabase manda el link para elegir la contraseña. Responde **siempre 200 con el mismo mensaje** (no revela quién está habilitado). 400 datos inválidos · 429 límites (8/h por IP, 3/h por email, o de mails de Supabase) · 502 no se pudo enviar el mail · 503 falta la migración 0010 |
+| — | Ingreso / nueva contraseña | No | Cliente de Supabase en el navegador: `signInWithPassword`; `/reset-password` usa `updateUser({ password })` con la sesión que deja el link |
 
-## Auth
-
-| Método | Ruta | Auth | Descripción |
-|---|---|---|---|
-| POST | `/api/registro` | No | Alta con código de invitación: `{ nombre, email, password (8–72), codigo }`. 201 · 400 datos inválidos · 403 código incorrecto · 409 email existente (sólo con código correcto) · 429 demasiados intentos · 503 registro deshabilitado. Crea el usuario habilitado (`app_metadata.ky_activo`) |
-| — | Ingreso / recuperar | No | Cliente de Supabase en el navegador: `signInWithPassword`, `resetPasswordForEmail` (`/recuperar` → `/reset-password`) |
-
-Todas las rutas de escritura responden `403 cuenta_no_habilitada` si la cuenta no tiene `app_metadata.ky_activo`.
+Todas las rutas de escritura responden `403 cuenta_no_habilitada` si la cuenta no tiene `app_metadata.ky_activo` (lo pone el trigger de
+`auth.users` según `usuarios_habilitados`).
 
 ## Diagnóstico
 

@@ -391,24 +391,20 @@ sólo para llamar a las funciones y crear/borrar UN vínculo temporal; los datos
 
 ---
 
-### [2026-09-20] — Acceso con email + contraseña, registro por invitación, cuenta habilitada (DD-13)
+### [2026-09-20] — Acceso con email + contraseña sobre una lista de habilitados (DD-13)
 
 **Prompt**: "el ingreso no manda código, sólo magic link (redirige a localhost:3000). ¿Por qué no lo reemplazás por usuario y contraseña
-de la app? Copiá el de Anima o el de LEX-AR para crear usuario."
+de la app? Copiá el de Anima o el de LEX-AR." Luego: "sólo pueden crear cuenta los usuarios cargados en Supabase en el proyecto KY,
+sin código de invitación ni nada: sólo los que yo habilite con mail corporativo".
 
-**Resultado**: ✅ Copiado el patrón de Anima (login + crear cuenta + recuperar + reset), pero **sin registro abierto**: KY exige código de
-invitación y una marca de habilitación que sólo escribe el servidor.
-- `lib/auth/activo.ts` (`app_metadata.ky_activo`), `lib/api/registro.ts` (Zod estricto + comparación en tiempo constante + detección de
-  email duplicado) + 6 tests; `POST /api/registro` (límite 8/h por IP; 403 antes de revelar si el email existe).
-- Pantallas: `/login` (email + contraseña), `/registro`, `/recuperar`, `/reset-password`, `/cuenta-pendiente`; marco y estilos comunes.
-- `middleware.ts`: sin sesión → /login; sesión sin marca → /cuenta-pendiente; con sesión, /login y /registro redirigen. Las 6 rutas de
-  escritura responden 403 `cuenta_no_habilitada`. `perfilActual()` expone `activo`.
-- `KY_CODIGO_INVITACION` (en `.env.local`; falta cargarlo en Vercel). Los scripts de prueba crean usuarios con la marca.
-- **E2E real (`scratch/e2e-auth.mjs`, 36 chequeos)**: código incorrecto 403 sin crear cuenta; campos extra (`app_metadata`, `rol`) rechazados;
-  registro válido → cuenta habilitada + email confirmado + perfil por trigger; duplicado 409 sólo con código correcto; ingreso; una cuenta
-  SIN la marca (creada por fuera) inicia sesión pero queda en /cuenta-pendiente y la API responde 403 (no gasta IA, no crea nada);
-  autoasignarse `ky_activo` en `user_metadata` no sirve. El límite de intentos se activó solo durante las pruebas repetidas (429).
-- **Hallazgo**: en el proyecto el registro público de Supabase está **activado** (`disable_signup: false`). No abre la app (la marca lo
-  impide) pero se recomienda desactivarlo.
-- Tests: 116/116 · tsc / lint / build limpios.
-
+**Resultado**: ✅ código, tests y validación de SQL; 🟡 falta aplicar la migración `0010` y correr el E2E (es DDL).
+- Primera versión (código de invitación + marca `ky_activo`) descartada: un secreto compartido no prueba que el mail sea de quien se anota.
+- **Migración `0010`** (`usuarios_habilitados` + triggers): sólo se crean usuarios habilitados (por cualquier vía), la marca `ky_activo` la pone
+  el trigger, y desactivar/borrar/cambiar rol en la lista se refleja en la cuenta. Sintaxis validada con el parser real de Postgres
+  (`libpg-query`), incluidos los cuerpos plpgsql.
+- `POST /api/acceso/enlace` (reemplaza `/api/registro`): crea la cuenta con contraseña aleatoria y manda el link por mail; respuesta única
+  (no revela quién está habilitado); borra y recrea una cuenta previa sin confirmar (secuestro previo); límites por IP y por email.
+- Pantallas `/registro` y `/recuperar` comparten `EnlaceForm`; `/reset-password` fija la contraseña con el link.
+- Tests: 117/117 (`lib/api/acceso.test.ts`: normalización, decisión de acción, marca de cuenta). E2E `scratch/e2e-auth.mjs` (candado en la base,
+  link, lista que manda, secuestro previo, límite por email) listo para correr tras aplicar `0010`; los otros scripts de prueba ahora
+  habilitan el email antes de crear el usuario.

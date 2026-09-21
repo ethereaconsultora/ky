@@ -131,22 +131,31 @@ al aprobar el plan.
   es acotado (las funciones de Newen devolverían lo que hoy leen de las tablas foráneas).
 - **Impacto**: `0009`; el diagnóstico aparece en Newen recién cuando el Counselor aprueba la propuesta.
 
-## DD-13 — Acceso con email + contraseña, registro por invitación y cuenta «habilitada» desde el servidor
+## DD-13 — Acceso con email + contraseña sobre una lista de habilitados que maneja el admin
 
-- **Contexto**: el ingreso por código de un solo uso dependía del envío de mails de Supabase (límite bajo por hora, plantillas y
-  URLs a configurar) y el usuario pidió el patrón de Anima / LEX-AR (email + contraseña, con alta de usuario). Pero KY **no puede tener
-  registro abierto**: cualquiera podría usar la app, gastar el crédito de IA y cargar entrevistas, y la anon key de Supabase es pública
-  (un registro «escondido» en la UI se saltea llamando directo a la API de Auth).
+- **Contexto**: el ingreso por código de un solo uso dependía del envío de mails de Supabase; el usuario pidió el patrón de Anima /
+  LEX-AR (email + contraseña, con «crear cuenta»). Pero KY no puede tener registro abierto (cualquiera usaría la app, gastaría el crédito
+  de IA y cargaría entrevistas; la anon key de Supabase es pública, así que esconder el botón no alcanza). Pidió además: **sin código de
+  invitación; sólo los usuarios que el admin habilite con su mail corporativo en Supabase**.
 - **Elección**:
-  - Ingreso con email + contraseña (`signInWithPassword`); recuperar contraseña por link (`/recuperar`, `/reset-password`).
-  - **Registro por código de invitación** (`POST /api/registro`, `KY_CODIGO_INVITACION`, mín. 12 caracteres; sin código configurado el
-    registro queda deshabilitado). Comparación en tiempo constante, límite de 8 intentos/hora por IP, no revela si un email existe
-    sin el código correcto. El usuario se crea con el service role y el email queda confirmado (no depende de mails).
-  - **La habilitación es una marca del servidor**: `app_metadata.ky_activo = true` (sólo la escribe el service role; `user_metadata`,
-    que el usuario puede editar, NO sirve). Middleware y todas las API la exigen: una cuenta creada por fuera (p. ej. el registro
-    público de Supabase o el dashboard) puede iniciar sesión pero queda en `/cuenta-pendiente` y recibe 403 en la API.
-  - Contraseña 8–72 caracteres (bcrypt ignora lo que pasa de 72 bytes).
-- **Recomendación operativa**: desactivar «Allow new users to sign up» en Supabase (defensa en profundidad; evita cuentas basura).
-- **Impacto**: cambian el login, el middleware y las 6 rutas de escritura; los scripts de prueba crean usuarios con `ky_activo`.
-  Para habilitar una cuenta creada a mano: `update auth.users set raw_app_meta_data = coalesce(raw_app_meta_data,'{}'::jsonb) || '{"ky_activo": true}'::jsonb where email = '...';`
-  Reemplaza el OTP por mail (decisión abierta #5 cerrada: login propio de EC, ahora con contraseña).
+  - **Lista de habilitados** = tabla `public.usuarios_habilitados` (email, nombre, rol, activo), editable desde el Table Editor. Es la
+    ÚNICA fuente de verdad de quién entra y con qué rol (migración `0010`).
+  - **Candado en la base**: un trigger `BEFORE INSERT` sobre `auth.users` rechaza crear cualquier usuario cuyo email no esté habilitado
+    (por cualquier vía: la app, el dashboard o el registro público de Supabase) y le pone `app_metadata.ky_activo = true`
+    (lo único que habilita el uso; `user_metadata`, que el usuario puede editar, NO sirve). Middleware y todas las rutas de escritura
+    exigen la marca. Desactivar o borrar la fila la baja (la cuenta no se borra) y rige en el siguiente request. Rol y nombre de la lista
+    se copian a `public.users`.
+  - **«Crear cuenta» = pedir un link a la casilla**: `POST /api/acceso/enlace`. Si el email está habilitado, se crea la cuenta con una
+    contraseña aleatoria que nadie conoce y Supabase manda a su casilla el link para elegir la suya (`/reset-password`). Sólo el dueño del
+    mail puede fijar la contraseña ⇒ nadie puede «anotarse primero» con un email ajeno. Una cuenta previa SIN confirmar (p. ej. creada
+    por fuera con contraseña de un atacante) se borra y se recrea. «Olvidé mi contraseña» es el mismo flujo.
+  - Nunca se revela si un email está habilitado (respuesta única); límites: 8 pedidos/hora por IP y 3 links/hora por email.
+  - Contraseña 8–72 caracteres (bcrypt ignora lo que pasa de 72 bytes). El link se genera desde el servidor (flujo implícito):
+    funciona abierto desde cualquier dispositivo.
+- **Alternativa descartada**: código de invitación compartido (primera versión de este DD): un secreto único para todos, sin
+  trazabilidad por persona, y no prueba que el mail sea de quien se anota.
+- **Recomendación operativa**: desactivar «Allow new users to sign up» en Supabase (ya no abre la app, pero evita ruido) y editar la
+  plantilla «Reset Password» para que hable de «crear o cambiar tu contraseña».
+- **Cómo habilitar a alguien**: `insert into public.usuarios_habilitados (email, nombre, rol) values ('ana@empresa.com','Lic. Ana Ferrer','counselor');`
+  y esa persona entra a `/registro`. Reemplaza el OTP por mail (decisión abierta #5 cerrada).
+- **Impacto**: cambia el login, el middleware y las 6 rutas de escritura; los scripts de prueba habilitan el email antes de crear el usuario.

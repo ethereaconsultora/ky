@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
+import { EnlaceForm } from "../login/enlace-form";
 import { MarcoAcceso } from "../login/marco";
-import { RecuperarForm } from "./recuperar-form";
 
 export const metadata: Metadata = { title: "Recuperar contraseña — KY" };
 
 export default function RecuperarPage() {
   return (
     <MarcoAcceso>
-      <RecuperarForm />
+      <EnlaceForm modo="recuperar" />
     </MarcoAcceso>
   );
 }

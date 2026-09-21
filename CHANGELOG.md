@@ -69,8 +69,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) · SemVer.
   `feature/diagnostico-ec`) pestaña «Diagnóstico EC» con vínculo por cliente. Ver DD-12.
 
 ### Changed — acceso con contraseña (DD-13)
-- Ingreso con email + contraseña (reemplaza el OTP por mail), registro por código de invitación y cuentas habilitadas sólo desde
-  el servidor. Recuperación de contraseña por link.
+- Ingreso con email + contraseña (reemplaza el OTP por mail). Sólo entran los emails de `usuarios_habilitados` (la maneja el admin desde
+  Supabase); cada uno crea su contraseña con un link a su casilla. Ver DD-13.
 
 ### Pendiente
 - Route Handlers (`/api/turno`, `/api/sintesis`, …) + STT + pantallas + integración Newen.
