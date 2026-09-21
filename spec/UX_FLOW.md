@@ -4,7 +4,7 @@ Target: **tablet en horizontal**. 4 pantallas + overlays. Basado en `metodo-ec/b
 con las correcciones de `PLAN_APROBADO.md` Parte 4. Estilos en `../DESIGN_SYSTEM.md`.
 
 ```
-Login (email + OTP)
+Login (email + contraseña · crear cuenta con código de invitación)
    │
    ▼
 [1] INICIO / DATOS + CONSENTIMIENTO

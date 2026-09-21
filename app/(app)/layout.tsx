@@ -8,6 +8,7 @@ import { perfilActual } from "@/lib/supabase/server";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const perfil = await perfilActual();
   if (!perfil) redirect("/login");
+  if (!perfil.activo) redirect("/cuenta-pendiente");
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>

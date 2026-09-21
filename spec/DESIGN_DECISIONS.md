@@ -130,3 +130,23 @@ al aprobar el plan.
   compartido). Se mantiene la FDW por la decisión inicial del plan; si la conexión entre proyectos resulta frágil, el cambio
   es acotado (las funciones de Newen devolverían lo que hoy leen de las tablas foráneas).
 - **Impacto**: `0009`; el diagnóstico aparece en Newen recién cuando el Counselor aprueba la propuesta.
+
+## DD-13 — Acceso con email + contraseña, registro por invitación y cuenta «habilitada» desde el servidor
+
+- **Contexto**: el ingreso por código de un solo uso dependía del envío de mails de Supabase (límite bajo por hora, plantillas y
+  URLs a configurar) y el usuario pidió el patrón de Anima / LEX-AR (email + contraseña, con alta de usuario). Pero KY **no puede tener
+  registro abierto**: cualquiera podría usar la app, gastar el crédito de IA y cargar entrevistas, y la anon key de Supabase es pública
+  (un registro «escondido» en la UI se saltea llamando directo a la API de Auth).
+- **Elección**:
+  - Ingreso con email + contraseña (`signInWithPassword`); recuperar contraseña por link (`/recuperar`, `/reset-password`).
+  - **Registro por código de invitación** (`POST /api/registro`, `KY_CODIGO_INVITACION`, mín. 12 caracteres; sin código configurado el
+    registro queda deshabilitado). Comparación en tiempo constante, límite de 8 intentos/hora por IP, no revela si un email existe
+    sin el código correcto. El usuario se crea con el service role y el email queda confirmado (no depende de mails).
+  - **La habilitación es una marca del servidor**: `app_metadata.ky_activo = true` (sólo la escribe el service role; `user_metadata`,
+    que el usuario puede editar, NO sirve). Middleware y todas las API la exigen: una cuenta creada por fuera (p. ej. el registro
+    público de Supabase o el dashboard) puede iniciar sesión pero queda en `/cuenta-pendiente` y recibe 403 en la API.
+  - Contraseña 8–72 caracteres (bcrypt ignora lo que pasa de 72 bytes).
+- **Recomendación operativa**: desactivar «Allow new users to sign up» en Supabase (defensa en profundidad; evita cuentas basura).
+- **Impacto**: cambian el login, el middleware y las 6 rutas de escritura; los scripts de prueba crean usuarios con `ky_activo`.
+  Para habilitar una cuenta creada a mano: `update auth.users set raw_app_meta_data = coalesce(raw_app_meta_data,'{}'::jsonb) || '{"ky_activo": true}'::jsonb where email = '...';`
+  Reemplaza el OTP por mail (decisión abierta #5 cerrada: login propio de EC, ahora con contraseña).

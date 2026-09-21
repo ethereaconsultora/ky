@@ -389,3 +389,26 @@ sólo para llamar a las funciones y crear/borrar UN vínculo temporal; los datos
 **Sin probar todavía**: la API route y la pestaña con una sesión real de Newen; y las 4 queries de verificación del rol
 (`newen_reader` no lee `public.respuesta_cruda`), que requieren su contraseña.
 
+---
+
+### [2026-09-20] — Acceso con email + contraseña, registro por invitación, cuenta habilitada (DD-13)
+
+**Prompt**: "el ingreso no manda código, sólo magic link (redirige a localhost:3000). ¿Por qué no lo reemplazás por usuario y contraseña
+de la app? Copiá el de Anima o el de LEX-AR para crear usuario."
+
+**Resultado**: ✅ Copiado el patrón de Anima (login + crear cuenta + recuperar + reset), pero **sin registro abierto**: KY exige código de
+invitación y una marca de habilitación que sólo escribe el servidor.
+- `lib/auth/activo.ts` (`app_metadata.ky_activo`), `lib/api/registro.ts` (Zod estricto + comparación en tiempo constante + detección de
+  email duplicado) + 6 tests; `POST /api/registro` (límite 8/h por IP; 403 antes de revelar si el email existe).
+- Pantallas: `/login` (email + contraseña), `/registro`, `/recuperar`, `/reset-password`, `/cuenta-pendiente`; marco y estilos comunes.
+- `middleware.ts`: sin sesión → /login; sesión sin marca → /cuenta-pendiente; con sesión, /login y /registro redirigen. Las 6 rutas de
+  escritura responden 403 `cuenta_no_habilitada`. `perfilActual()` expone `activo`.
+- `KY_CODIGO_INVITACION` (en `.env.local`; falta cargarlo en Vercel). Los scripts de prueba crean usuarios con la marca.
+- **E2E real (`scratch/e2e-auth.mjs`, 36 chequeos)**: código incorrecto 403 sin crear cuenta; campos extra (`app_metadata`, `rol`) rechazados;
+  registro válido → cuenta habilitada + email confirmado + perfil por trigger; duplicado 409 sólo con código correcto; ingreso; una cuenta
+  SIN la marca (creada por fuera) inicia sesión pero queda en /cuenta-pendiente y la API responde 403 (no gasta IA, no crea nada);
+  autoasignarse `ky_activo` en `user_metadata` no sirve. El límite de intentos se activó solo durante las pruebas repetidas (429).
+- **Hallazgo**: en el proyecto el registro público de Supabase está **activado** (`disable_signup: false`). No abre la app (la marca lo
+  impide) pero se recomienda desactivarlo.
+- Tests: 116/116 · tsc / lint / build limpios.
+

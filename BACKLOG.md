@@ -39,13 +39,14 @@
 
 - ✅ Clientes Supabase: `lib/supabase/{env,server,client,service}.ts` (`@supabase/ssr`).
   `usuarioActual()` / `perfilActual()` con `getUser()`. Verificado (13 tablas → 200).
-- ✅ Auth EC: login propio (Supabase Auth, email + OTP, `shouldCreateUser:false`). Decisión #5 cerrada.
+- ✅ Auth EC: login propio con **email + contraseña** (reemplaza el OTP por mail), **registro por código de invitación** y cuenta
+  «habilitada» desde el servidor (`app_metadata.ky_activo`, DD-13). Decisión #5 cerrada.
   `middleware.ts` (refresh + guard de rutas), `app/login/`, `app/auth/signout`, layout `(app)/`
   con revalidación server-side.
 - ✅ Trigger `on auth.users` → alta en `public.users` (`supabase/migrations/0007`, con backfill).
 - ✅ Migraciones `0001–0007` aplicadas y verificadas en el proyecto real (16 tablas en `public`, esquema
   `ec_publico` con 3 vistas, 5 funciones, trigger `on_auth_user_created`) — 2026-09-20.
-- ⬜ Dar de alta a los counselors en Supabase → Authentication → Users (hoy hay 0) y correr `supabase/seed.sql`
+- ⬜ Cargar `KY_CODIGO_INVITACION` en Vercel, **desactivar «Allow new users to sign up» en Supabase** y crear las cuentas en `/registro`; correr `supabase/seed.sql`
   (consentimiento placeholder; `consentimiento_textos` está vacía).
 - ⬜ Componentes base del `DESIGN_SYSTEM.md` (hoy estilos inline con tokens).
 - ✅ `POST /api/diagnostico` (empresa + diagnóstico + datos_economicos, con rollback) + pantallas Inicio

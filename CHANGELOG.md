@@ -68,6 +68,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/es/1.0.0/) · SemVer.
 - Vistas `ec_publico` que sólo exponen diagnósticos aprobados por el Counselor; rol `newen_reader` endurecido; en Newen (rama
   `feature/diagnostico-ec`) pestaña «Diagnóstico EC» con vínculo por cliente. Ver DD-12.
 
+### Changed — acceso con contraseña (DD-13)
+- Ingreso con email + contraseña (reemplaza el OTP por mail), registro por código de invitación y cuentas habilitadas sólo desde
+  el servidor. Recuperación de contraseña por link.
+
 ### Pendiente
 - Route Handlers (`/api/turno`, `/api/sintesis`, …) + STT + pantallas + integración Newen.
 - Aplicar migraciones contra el proyecto Supabase real (Fase 0) + trigger de alta en `public.users`.

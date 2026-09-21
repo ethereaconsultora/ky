@@ -1,12 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { esUsuarioActivo } from "@/lib/auth/activo";
 import { actualizarSesion } from "@/lib/supabase/middleware";
 
 /**
  * - Refresca la sesion de Supabase en cada navegacion.
  * - Rutas de pagina sin sesion -> /login.
- * - /api/*: no redirige (cada Route Handler responde 401 JSON por su cuenta).
+ * - Con sesion pero SIN la marca de cuenta habilitada (`app_metadata.ky_activo`) -> /cuenta-pendiente.
+ * - /api/*: no redirige (cada Route Handler responde 401/403 JSON por su cuenta).
  */
-const PREFIJOS_PUBLICOS = ["/login", "/auth"];
+const PREFIJOS_PUBLICOS = ["/login", "/registro", "/recuperar", "/reset-password", "/auth"];
+const SOLO_SIN_SESION = ["/login", "/registro"];
+
+const coincide = (pathname: string, prefijos: string[]) =>
+  prefijos.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 export async function middleware(request: NextRequest) {
   const { response, user } = await actualizarSesion(request);
@@ -14,23 +20,24 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/api")) return response;
 
-  const esPublica = PREFIJOS_PUBLICOS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
-  );
-
-  if (!user && !esPublica) {
+  const esPublica = coincide(pathname, PREFIJOS_PUBLICOS);
+  const ir = (destino: string, conNext = false) => {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  if (user && pathname === "/login") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = destino;
     url.search = "";
+    if (conNext) url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
-  }
+  };
+
+  if (!user) return esPublica ? response : ir("/login", true);
+
+  const activo = esUsuarioActivo(user);
+
+  // con sesion no tiene sentido ver ingresar / crear cuenta
+  if (coincide(pathname, SOLO_SIN_SESION)) return ir(activo ? "/" : "/cuenta-pendiente");
+
+  if (!activo && !esPublica && pathname !== "/cuenta-pendiente") return ir("/cuenta-pendiente");
+  if (activo && pathname === "/cuenta-pendiente") return ir("/");
 
   return response;
 }

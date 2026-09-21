@@ -28,6 +28,7 @@ export const PRESUPUESTOS = {
   sintesis: { maximo: 5, ventanaMs: 60 * 60_000 }, // 5 / hora por diagnóstico
   mensaje: { maximo: 5, ventanaMs: 60 * 60_000 },
   stt_token: { maximo: 20, ventanaMs: 60 * 60_000 }, // 20 / hora por counselor
+  registro: { maximo: 8, ventanaMs: 60 * 60_000 }, // 8 intentos / hora por IP (frena la fuerza bruta del codigo)
 } as const satisfies Record<string, Ventana>;
 
 export type NombrePresupuesto = keyof typeof PRESUPUESTOS;

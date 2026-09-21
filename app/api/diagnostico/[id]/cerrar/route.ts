@@ -12,6 +12,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { esUsuarioActivo } from "@/lib/auth/activo";
 import { z } from "zod";
 import {
   filaIntervencion,
@@ -54,6 +55,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   const sb = await crearClienteServidor();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return err("no_autenticado", "Sesión requerida.", 401);
+  if (!esUsuarioActivo(auth.user)) return err("cuenta_no_habilitada", "Tu cuenta todavía no está habilitada.", 403);
 
   const { data: diag } = await sb
     .from("diagnostico")

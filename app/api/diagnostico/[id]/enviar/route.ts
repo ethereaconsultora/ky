@@ -5,6 +5,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { esUsuarioActivo } from "@/lib/auth/activo";
 import { z } from "zod";
 import { estadoEntrega, puedeEnviar } from "@/lib/api/entrega";
 import { crearClienteServidor } from "@/lib/supabase/server";
@@ -21,6 +22,7 @@ export async function POST(_req: Request, ctx: { params: Promise<{ id: string }>
   const sb = await crearClienteServidor();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return err("no_autenticado", "Sesión requerida.", 401);
+  if (!esUsuarioActivo(auth.user)) return err("cuenta_no_habilitada", "Tu cuenta todavía no está habilitada.", 403);
 
   const { data: diag } = await sb.from("diagnostico").select("id, estado").eq("id", id).maybeSingle();
   if (!diag) return err("no_encontrado", "Diagnóstico inexistente o ajeno.", 404);

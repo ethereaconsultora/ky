@@ -11,6 +11,15 @@ rate limit (Upstash). Detalle de esquemas en `openapi.yaml`.
 | POST | `/auth/otp` | No | Envía OTP / magic link al email del counselor |
 | GET | `/auth/callback` | No | Callback de Supabase Auth |
 
+## Auth
+
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| POST | `/api/registro` | No | Alta con código de invitación: `{ nombre, email, password (8–72), codigo }`. 201 · 400 datos inválidos · 403 código incorrecto · 409 email existente (sólo con código correcto) · 429 demasiados intentos · 503 registro deshabilitado. Crea el usuario habilitado (`app_metadata.ky_activo`) |
+| — | Ingreso / recuperar | No | Cliente de Supabase en el navegador: `signInWithPassword`, `resetPasswordForEmail` (`/recuperar` → `/reset-password`) |
+
+Todas las rutas de escritura responden `403 cuenta_no_habilitada` si la cuenta no tiene `app_metadata.ky_activo`.
+
 ## Diagnóstico
 
 | Método | Ruta | Rol | Descripción |

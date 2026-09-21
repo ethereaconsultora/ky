@@ -11,6 +11,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { esUsuarioActivo } from "@/lib/auth/activo";
 import { z } from "zod";
 import { ejecutarTurno } from "@/lib/ia/motor-turno";
 import { crearClienteModelo } from "@/lib/ia/proveedor";
@@ -53,6 +54,7 @@ export async function POST(req: Request) {
   const sb = await crearClienteServidor();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return err("no_autenticado", "Sesión requerida.", 401);
+  if (!esUsuarioActivo(auth.user)) return err("cuenta_no_habilitada", "Tu cuenta todavía no está habilitada.", 403);
 
   // 3. diagnóstico (RLS deja ver sólo los del counselor)
   const { data: diag } = await sb

@@ -7,8 +7,10 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-type CookieAdaptada = { name: string; value: string; options: CookieOptions };
+import { esUsuarioActivo } from "../auth/activo.ts";
 import { SUPABASE_ANON_KEY, SUPABASE_URL } from "./env.ts";
+
+type CookieAdaptada = { name: string; value: string; options: CookieOptions };
 
 export async function crearClienteServidor() {
   const cookieStore = await cookies();
@@ -46,6 +48,8 @@ export interface PerfilCounselor {
   email: string | null;
   nombre: string | null;
   rol: "counselor" | "admin";
+  /** Cuenta habilitada por el servidor (app_metadata.ky_activo). */
+  activo: boolean;
 }
 
 /** Usuario + su fila de `public.users`. null si no hay sesion. */
@@ -60,12 +64,8 @@ export async function perfilActual(): Promise<PerfilCounselor | null> {
     .eq("id", auth.user.id)
     .maybeSingle();
 
-  return (
-    (fila as PerfilCounselor | null) ?? {
-      id: auth.user.id,
-      email: auth.user.email ?? null,
-      nombre: null,
-      rol: "counselor",
-    }
-  );
+  const activo = esUsuarioActivo(auth.user);
+  return fila
+    ? { ...(fila as Omit<PerfilCounselor, "activo">), activo }
+    : { id: auth.user.id, email: auth.user.email ?? null, nombre: null, rol: "counselor", activo };
 }
