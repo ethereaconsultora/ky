@@ -672,14 +672,17 @@ alter table public.usuarios_habilitados enable row level security;
 revoke all on public.usuarios_habilitados from anon, authenticated;
 
 -- ------------------------------------------------------------
--- 1. El email se guarda siempre en minúsculas y sin espacios (aunque el admin lo escriba distinto)
+-- 1. El email y el rol se guardan siempre en minúsculas y sin espacios (aunque el admin los escriba
+--    distinto: "Admin", " ANA@Empresa.com "). Corre ANTES del chequeo de la columna `rol`.
 -- ------------------------------------------------------------
 create or replace function public.ky_normalizar_email_habilitado()
 returns trigger
 language plpgsql
 as $$
 begin
-  new.email := lower(btrim(new.email));
+  new.email  := lower(btrim(new.email));
+  new.rol    := lower(btrim(new.rol));
+  new.nombre := nullif(btrim(new.nombre), '');
   return new;
 end $$;
 
