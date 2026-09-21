@@ -408,3 +408,9 @@ sin código de invitación ni nada: sólo los que yo habilite con mail corporati
 - Tests: 117/117 (`lib/api/acceso.test.ts`: normalización, decisión de acción, marca de cuenta). E2E `scratch/e2e-auth.mjs` (candado en la base,
   link, lista que manda, secuestro previo, límite por email) listo para correr tras aplicar `0010`; los otros scripts de prueba ahora
   habilitan el email antes de crear el usuario.
+
+**Actualización (mismo día, 0010 aplicada)**: ✅ `scratch/e2e-auth.mjs` contra la base real, 34/34 chequeos OK (candado en la base, alta con
+contraseña aleatoria, creación de contraseña con el link, login + crear diagnóstico, desactivar/reactivar/cambiar rol/borrar en la lista,
+secuestro previo, límite por email). Ese run usó `KY_ACCESO_MAIL=off` (interruptor sólo local en `/api/acceso/enlace`, no se configura en
+Vercel) para no gastar el cupo de mails de Supabase. El envío real se probó aparte, una vez, a la casilla del admin: la API respondió 200.
+Falta que el admin abra el mail y confirme que el link lleva a `/reset-password` (depende de Site URL / Redirect URLs de Supabase).

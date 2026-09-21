@@ -46,7 +46,7 @@
 - ✅ Trigger `on auth.users` → alta en `public.users` (`supabase/migrations/0007`, con backfill).
 - ✅ Migraciones `0001–0007` aplicadas y verificadas en el proyecto real (16 tablas en `public`, esquema
   `ec_publico` con 3 vistas, 5 funciones, trigger `on_auth_user_created`) — 2026-09-20.
-- ⬜ Aplicar `0010`, cargar los emails en `usuarios_habilitados` (uno con rol `admin`), editar la plantilla «Reset Password», configurar Site URL, desactivar «Allow new users to sign up»; correr `supabase/seed.sql`
+- ✅ `0010` aplicada, admin cargado y E2E de acceso 34/34 (2026-09-20). ⬜ Falta: abrir el mail real y crear la contraseña (verifica Site URL / Redirect URLs), desactivar «Allow new users to sign up», opcional SMTP propio (Zoho) para plantillas en español; correr `supabase/seed.sql`
   (consentimiento placeholder; `consentimiento_textos` está vacía).
 - ⬜ Componentes base del `DESIGN_SYSTEM.md` (hoy estilos inline con tokens).
 - ✅ `POST /api/diagnostico` (empresa + diagnóstico + datos_economicos, con rollback) + pantallas Inicio

@@ -74,6 +74,10 @@ export async function POST(req: Request) {
     }
   }
 
+  // Interruptor SÓLO para pruebas locales (scratch/e2e-auth.mjs): no gasta el cupo de mails de Supabase.
+  // Nunca se configura en Vercel; con cualquier otro valor (o sin definir) el mail se envía normalmente.
+  if (process.env.KY_ACCESO_MAIL === "off") return ok();
+
   // el link lo manda Supabase. Cliente plano (flujo implícito): el link funciona abierto desde cualquier dispositivo.
   const anon = createClient(SUPABASE_URL(), SUPABASE_ANON_KEY(), {
     auth: { persistSession: false, autoRefreshToken: false, flowType: "implicit" },
